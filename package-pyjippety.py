@@ -246,6 +246,7 @@ def _package_flatpak() -> None:
     source_root = RELEASE_DIR / "flatpak-src"
     project_source = source_root / "project"
     wheels_dir = source_root / "wheels"
+    bundled_wheels_dir = project_source / "_flatpak_wheels"
     manifest_path = source_root / "com.bots.PyJippety.generated.yml"
     for path in (build_root, repo_dir):
         if path.exists():
@@ -285,6 +286,10 @@ def _package_flatpak() -> None:
             "wheel",
         ]
     )
+    bundled_wheels_dir.mkdir(parents=True, exist_ok=True)
+    for wheel in wheels_dir.iterdir():
+        if wheel.is_file():
+            shutil.copy2(wheel, bundled_wheels_dir / wheel.name)
     manifest_path.write_text(
         "\n".join(
             [
@@ -309,7 +314,7 @@ def _package_flatpak() -> None:
                 "  - name: pyjippety",
                 "    buildsystem: simple",
                 "    build-commands:",
-                f"      - python3 -m pip install --prefix=/app --no-cache-dir --no-build-isolation --no-index --find-links={wheels_dir} .",
+                "      - python3 -m pip install --prefix=/app --no-cache-dir --no-build-isolation --no-index --find-links=./_flatpak_wheels .",
                 "    sources:",
                 "      - type: dir",
                 f"        path: {project_source}",
