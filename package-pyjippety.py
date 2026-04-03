@@ -309,7 +309,7 @@ def _package_flatpak() -> None:
                 "  - name: pyjippety",
                 "    buildsystem: simple",
                 "    build-commands:",
-                "      - python3 -m pip install --prefix=/app --no-cache-dir --no-build-isolation --no-index --find-links=../wheels .",
+                f"      - python3 -m pip install --prefix=/app --no-cache-dir --no-build-isolation --no-index --find-links={wheels_dir} .",
                 "    sources:",
                 "      - type: dir",
                 f"        path: {project_source}",
