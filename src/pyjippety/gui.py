@@ -3,9 +3,11 @@ from __future__ import annotations
 import logging
 import os
 import queue
+import sys
 import threading
 import tkinter as tk
 from dataclasses import dataclass
+from pathlib import Path
 from tkinter import ttk
 
 from .config import AssistantConfig, env_file_path, load_environment
@@ -135,9 +137,12 @@ class PyjippetyApp:
         self.setting_rows: list[tuple[SettingField, tuple[tk.Widget, tk.Widget]]] = []
         self.section_cards: list[tuple[SettingSection, tk.Widget]] = []
         self.env_path = env_file_path()
+        self.logo_image: tk.PhotoImage | None = None
+        self.logo_mark: tk.PhotoImage | None = None
 
         load_environment()
         self.config = AssistantConfig.from_env()
+        self._load_logo_assets()
         self._configure_theme()
         self._install_log_handler()
         self._build_layout()
@@ -169,6 +174,26 @@ class PyjippetyApp:
         style.configure("App.TEntry", fieldbackground=CARD, bordercolor=BORDER, padding=8)
         style.configure("App.TCheckbutton", background=CARD, foreground=TEXT)
 
+    def _candidate_logo_paths(self) -> tuple[Path, ...]:
+        candidates: list[Path] = []
+        if getattr(sys, "_MEIPASS", None):
+            candidates.append(Path(sys._MEIPASS) / "assets" / "pyjippety-logo.png")
+        candidates.append(Path.home() / ".local" / "share" / "pyjippety" / "pyjippety-logo.png")
+        candidates.append(Path(__file__).resolve().parents[2] / "assets" / "pyjippety-logo.png")
+        return tuple(candidates)
+
+    def _load_logo_assets(self) -> None:
+        for path in self._candidate_logo_paths():
+            if not path.exists():
+                continue
+            try:
+                self.logo_image = tk.PhotoImage(file=str(path))
+                self.logo_mark = self.logo_image.subsample(4, 4)
+                self.root.iconphoto(True, self.logo_image)
+                return
+            except Exception:
+                continue
+
     def _install_log_handler(self) -> None:
         handler = QueueLogHandler(self.log_queue)
         handler.setFormatter(logging.Formatter("%(asctime)s  %(levelname)s  %(message)s"))
@@ -183,14 +208,17 @@ class PyjippetyApp:
 
         header = ttk.Frame(self.root, style="App.TFrame", padding=(24, 20, 24, 8))
         header.grid(row=0, column=0, sticky="ew")
-        header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(header, text="PyJippety", style="Header.TLabel").grid(row=0, column=0, sticky="w")
+        if self.logo_mark is not None:
+            tk.Label(header, image=self.logo_mark, bg=SURFACE).grid(row=0, column=0, rowspan=2, sticky="w", padx=(0, 12))
+
+        ttk.Label(header, text="PyJippety", style="Header.TLabel").grid(row=0, column=1, sticky="w")
         ttk.Label(
             header,
             text="Desktop voice assistant",
             style="Subheader.TLabel",
-        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+        ).grid(row=1, column=1, sticky="w", pady=(2, 0))
 
         self.status_badge = tk.Label(
             header,
@@ -201,7 +229,7 @@ class PyjippetyApp:
             pady=8,
             font=("TkDefaultFont", 10, "bold"),
         )
-        self.status_badge.grid(row=0, column=1, rowspan=2, sticky="e")
+        self.status_badge.grid(row=0, column=2, rowspan=2, sticky="e")
 
         body = ttk.Frame(self.root, style="App.TFrame", padding=(24, 8, 24, 24))
         body.grid(row=1, column=0, sticky="nsew")

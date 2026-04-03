@@ -11,6 +11,7 @@ CONFIG_FILE="${CONFIG_HOME}/.env"
 WRAPPER_PATH="${BIN_DIR}/pyjippety-ui"
 DESKTOP_PATH="${DESKTOP_DIR}/pyjippety.desktop"
 ICON_PATH="${APP_HOME}/pyjippety-logo.svg"
+ICON_PNG_PATH="${APP_HOME}/pyjippety-logo.png"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "python3 is required but was not found." >&2
@@ -33,6 +34,7 @@ if [ ! -f "${CONFIG_FILE}" ]; then
 fi
 
 cp "${PROJECT_DIR}/assets/pyjippety-logo.svg" "${ICON_PATH}"
+cp "${PROJECT_DIR}/assets/pyjippety-logo.png" "${ICON_PNG_PATH}"
 
 cat > "${WRAPPER_PATH}" <<EOF
 #!/usr/bin/env bash
@@ -49,7 +51,7 @@ Type=Application
 Name=PyJippety
 Comment=Desktop voice assistant
 Exec=${WRAPPER_PATH}
-Icon=${ICON_PATH}
+Icon=${ICON_PNG_PATH}
 Terminal=false
 Categories=Utility;
 EOF
@@ -58,7 +60,7 @@ echo
 echo "PyJippety is installed."
 echo "Launcher: ${WRAPPER_PATH}"
 echo "Desktop entry: ${DESKTOP_PATH}"
-echo "Icon: ${ICON_PATH}"
+echo "Icon: ${ICON_PNG_PATH}"
 echo "Config file: ${CONFIG_FILE}"
 echo
 echo "Next steps:"
