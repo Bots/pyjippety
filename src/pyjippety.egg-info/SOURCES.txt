@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+src/pyjippety/__init__.py
+src/pyjippety/bot.py
+src/pyjippety/gui.py
+src/pyjippety.egg-info/PKG-INFO
+src/pyjippety.egg-info/SOURCES.txt
+src/pyjippety.egg-info/dependency_links.txt
+src/pyjippety.egg-info/entry_points.txt
+src/pyjippety.egg-info/requires.txt
+src/pyjippety.egg-info/top_level.txt
+tests/test_bot.py

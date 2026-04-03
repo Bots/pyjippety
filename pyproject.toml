@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyjippety"
+version = "0.1.0"
+description = "A wake-word desktop voice assistant in Python backed by OpenAI."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "openai>=2.0.0",
+  "pvporcupine>=4.0.0",
+  "pvrecorder>=1.2.0",
+  "SpeechRecognition>=3.10.4",
+  "PyAudio>=0.2.14",
+  "python-dotenv>=1.0.1",
+]
+
+[project.scripts]
+pyjippety = "pyjippety.bot:main"
+pyjippety-ui = "pyjippety.gui:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,5 @@
+{
+  "last_turn_at": "2026-04-03T15:20:10.612Z",
+  "turn_count": 16,
+  "last_agent_output": "That happens because you do not have a commit yet, so there is no `HEAD` to restore against.\n\nUse th"
+}

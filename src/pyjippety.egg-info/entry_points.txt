@@ -1,0 +1,3 @@
+[console_scripts]
+pyjippety = pyjippety.bot:main
+pyjippety-ui = pyjippety.gui:main
