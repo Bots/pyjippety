@@ -18,6 +18,7 @@ fi
   --onedir \
   --name pyjippety \
   --paths "${PROJECT_DIR}/src" \
+  --add-data "${PROJECT_DIR}/assets:assets" \
   "${PROJECT_DIR}/src/pyjippety/gui.py"
 
 echo

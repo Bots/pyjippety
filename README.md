@@ -1,6 +1,10 @@
-# pyjippety
+<p align="center">
+  <img src="assets/pyjippety-logo.svg" alt="PyJippety logo" width="132">
+</p>
 
-`pyjippety` is a desktop voice assistant for Python.
+# PyJippety
+
+`PyJippety` is a desktop voice assistant for Python.
 
 It listens for a local wake word with Porcupine, records a follow-up prompt, sends that prompt to OpenAI for transcription and response generation, and can speak the answer back through OpenAI speech.
 
@@ -35,7 +39,7 @@ The installer will:
 - install a launcher at `~/.local/bin/pyjippety-ui`
 - add a desktop entry so the app can appear in the applications menu
 
-After install, open `pyjippety` from your applications menu or run:
+After install, open `PyJippety` from your applications menu or run:
 
 ```bash
 ~/.local/bin/pyjippety-ui
@@ -61,6 +65,7 @@ Then:
 2. Start voice mode.
 3. Say the wake word.
 4. Speak your prompt.
+5. If you want clarification, ask a quick follow-up right after the reply. You do not need the wake word again until the follow-up window closes.
 
 If you want to test the assistant without using the wake word, use the typed request box in the `Workspace` tab.
 
@@ -134,6 +139,7 @@ The runtime pipeline is intentionally simple:
 3. The prompt audio is sent to OpenAI transcription.
 4. The transcript is sent to an OpenAI chat model.
 5. The reply is spoken with OpenAI speech, or printed if speech is disabled or unavailable.
+6. The app keeps listening for a small number of follow-up questions before returning to wake-word mode.
 
 Wake-word detection stays on-device. The transcription, response, and speech steps use the OpenAI API.
 
@@ -181,6 +187,8 @@ For manual editing, the main settings are:
 - `ASSISTANT_MEMORY_FACT_LIMIT`
 - `ASSISTANT_LISTEN_TIMEOUT`
 - `ASSISTANT_PHRASE_TIME_LIMIT`
+- `ASSISTANT_FOLLOW_UP_ENABLED`
+- `ASSISTANT_FOLLOW_UP_TURN_LIMIT`
 - `ASSISTANT_AMBIENT_ADJUST_SECONDS`
 - `ASSISTANT_ENERGY_THRESHOLD`
 - `ASSISTANT_AUDIO_DEVICE_INDEX`

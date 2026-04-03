@@ -86,6 +86,8 @@ class HelperTests(unittest.TestCase):
             "ASSISTANT_SYSTEM_PROMPT": "Be brief",
             "ASSISTANT_LISTEN_TIMEOUT": "7",
             "ASSISTANT_PHRASE_TIME_LIMIT": "11",
+            "ASSISTANT_FOLLOW_UP_ENABLED": "true",
+            "ASSISTANT_FOLLOW_UP_TURN_LIMIT": "3",
             "ASSISTANT_TTS_ENABLED": "false",
             "ASSISTANT_TTS_MODEL": "tts-1",
             "ASSISTANT_TTS_FALLBACK_MODELS": "tts-1-hd",
@@ -103,10 +105,13 @@ class HelperTests(unittest.TestCase):
 
         self.assertEqual(config.wake_word, "computer")
         self.assertEqual(config.transcription_fallback_models, ("gpt-4o-transcribe", "whisper-1"))
+        self.assertTrue(config.follow_up_enabled)
+        self.assertEqual(config.follow_up_turn_limit, 3)
         self.assertFalse(config.tts_enabled)
         self.assertEqual(config.audio_device_index, 3)
         self.assertEqual(config.exit_words, ("stop listening", "quit assistant"))
         self.assertEqual(round_trip["ASSISTANT_WAKE_WORD"], "computer")
+        self.assertEqual(round_trip["ASSISTANT_FOLLOW_UP_TURN_LIMIT"], "3")
         self.assertEqual(round_trip["ASSISTANT_TTS_ENABLED"], "false")
         self.assertEqual(round_trip["ASSISTANT_AUDIO_DEVICE_INDEX"], "3")
 
@@ -159,12 +164,34 @@ class DesktopAssistantTests(unittest.TestCase):
 
         self.assertTrue(listener.calibrated)
         self.assertEqual(detector.calls, 1)
-        self.assertEqual(detector.paused, 1)
-        self.assertEqual(detector.resumed, 1)
+        self.assertEqual(detector.paused, 2)
+        self.assertEqual(detector.resumed, 2)
         self.assertEqual(cue_player.wake_cues, 1)
         self.assertTrue(detector.closed)
         self.assertEqual(responder.prompts, ["say hello"])
         self.assertEqual(speaker.messages, ["echo:say hello"])
+
+    def test_run_allows_follow_up_without_wake_word(self):
+        detector = FakeDetector()
+        listener = FakeListener(["first question", "follow up", None])
+        responder = FakeResponder()
+        speaker = FakeSpeaker()
+        cue_player = FakeCuePlayer()
+        assistant = DesktopAssistant(
+            AssistantConfig(follow_up_turn_limit=2),
+            detector,
+            listener,
+            responder,
+            speaker,
+            cue_player,
+        )
+
+        assistant.run(once=True)
+
+        self.assertEqual(responder.prompts, ["first question", "follow up"])
+        self.assertEqual(speaker.messages, ["echo:first question", "echo:follow up"])
+        self.assertEqual(detector.paused, 3)
+        self.assertEqual(detector.resumed, 3)
 
     def test_run_handles_missing_prompt_after_wake_word(self):
         detector = FakeDetector()

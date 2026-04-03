@@ -120,7 +120,7 @@ class QueueLogHandler(logging.Handler):
 class PyjippetyApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("pyjippety")
+        self.root.title("PyJippety")
         self.root.geometry("1220x820")
         self.root.minsize(1080, 720)
         self.root.configure(bg=SURFACE)
@@ -185,7 +185,7 @@ class PyjippetyApp:
         header.grid(row=0, column=0, sticky="ew")
         header.grid_columnconfigure(0, weight=1)
 
-        ttk.Label(header, text="pyjippety", style="Header.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(header, text="PyJippety", style="Header.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(
             header,
             text="Desktop voice assistant",
@@ -837,7 +837,7 @@ class PyjippetyApp:
             reply = MemoryAwareResponder(
                 OpenAIResponder(client, config), memory_store
             ).reply(prompt)
-            self.log_queue.put(f"pyjippety: {reply}")
+            self.log_queue.put(f"PyJippety: {reply}")
             try:
                 build_speaker(client, config).say(reply)
             except Exception as exc:

@@ -83,6 +83,29 @@ class DesktopAssistant:
     def request_stop(self) -> None:
         self.detector.request_stop()
 
+    def _listen_for_prompt(self) -> str | None:
+        self.detector.pause()
+        try:
+            return self.listener.listen()
+        finally:
+            self.detector.resume()
+
+    def _run_follow_up_turns(self) -> bool:
+        if not self.config.follow_up_enabled:
+            return True
+
+        remaining_turns = max(self.config.follow_up_turn_limit, 0)
+        while remaining_turns > 0:
+            prompt = self._listen_for_prompt()
+            if not prompt:
+                LOGGER.info("Follow-up window closed.")
+                return True
+            keep_running = self.handle_prompt(prompt)
+            if not keep_running:
+                return False
+            remaining_turns -= 1
+        return True
+
     def run(self, once: bool = False) -> None:
         self.listener.calibrate()
         LOGGER.info("Listening for %s.", self.config.wake_word)
@@ -91,11 +114,7 @@ class DesktopAssistant:
                 if not self.detector.wait_for_wake_word():
                     break
                 self.cue_player.play_wake_cue()
-                self.detector.pause()
-                try:
-                    prompt = self.listener.listen()
-                finally:
-                    self.detector.resume()
+                prompt = self._listen_for_prompt()
                 if not prompt:
                     LOGGER.info("No prompt detected after wake word.")
                     if once:
@@ -103,7 +122,12 @@ class DesktopAssistant:
                     continue
 
                 keep_running = self.handle_prompt(prompt)
-                if once or not keep_running:
+                if not keep_running:
+                    break
+                keep_running = self._run_follow_up_turns()
+                if not keep_running:
+                    break
+                if once:
                     break
         finally:
             self.detector.close()

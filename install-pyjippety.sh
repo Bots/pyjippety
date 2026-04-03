@@ -10,6 +10,7 @@ VENV_DIR="${APP_HOME}/venv"
 CONFIG_FILE="${CONFIG_HOME}/.env"
 WRAPPER_PATH="${BIN_DIR}/pyjippety-ui"
 DESKTOP_PATH="${DESKTOP_DIR}/pyjippety.desktop"
+ICON_PATH="${APP_HOME}/pyjippety-logo.svg"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "python3 is required but was not found." >&2
@@ -31,6 +32,8 @@ if [ ! -f "${CONFIG_FILE}" ]; then
   cp "${PROJECT_DIR}/.env.example" "${CONFIG_FILE}"
 fi
 
+cp "${PROJECT_DIR}/assets/pyjippety-logo.svg" "${ICON_PATH}"
+
 cat > "${WRAPPER_PATH}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
@@ -43,19 +46,21 @@ cat > "${DESKTOP_PATH}" <<EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=pyjippety
+Name=PyJippety
 Comment=Desktop voice assistant
 Exec=${WRAPPER_PATH}
+Icon=${ICON_PATH}
 Terminal=false
 Categories=Utility;
 EOF
 
 echo
-echo "pyjippety is installed."
+echo "PyJippety is installed."
 echo "Launcher: ${WRAPPER_PATH}"
 echo "Desktop entry: ${DESKTOP_PATH}"
+echo "Icon: ${ICON_PATH}"
 echo "Config file: ${CONFIG_FILE}"
 echo
 echo "Next steps:"
-echo "1. Launch pyjippety from your applications menu or by running: ${WRAPPER_PATH}"
+echo "1. Launch PyJippety from your applications menu or by running: ${WRAPPER_PATH}"
 echo "2. Open the Settings tab and add your OpenAI and Picovoice keys."

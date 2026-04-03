@@ -51,6 +51,8 @@ class AssistantConfig:
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
     listen_timeout: float = 5.0
     phrase_time_limit: float = 10.0
+    follow_up_enabled: bool = True
+    follow_up_turn_limit: int = 2
     tts_model: str = "gpt-4o-mini-tts"
     tts_fallback_models: tuple[str, ...] = ("tts-1", "tts-1-hd")
     tts_voice: str = "alloy"
@@ -103,6 +105,10 @@ class AssistantConfig:
             phrase_time_limit=float(
                 values.get("ASSISTANT_PHRASE_TIME_LIMIT", str(cls.phrase_time_limit))
             ),
+            follow_up_enabled=parse_bool(values.get("ASSISTANT_FOLLOW_UP_ENABLED"), True),
+            follow_up_turn_limit=int(
+                values.get("ASSISTANT_FOLLOW_UP_TURN_LIMIT", str(cls.follow_up_turn_limit))
+            ),
             tts_model=values.get("ASSISTANT_TTS_MODEL", cls.tts_model),
             tts_fallback_models=parse_csv(
                 values.get("ASSISTANT_TTS_FALLBACK_MODELS", "tts-1,tts-1-hd")
@@ -145,6 +151,8 @@ class AssistantConfig:
             "ASSISTANT_SYSTEM_PROMPT": self.system_prompt,
             "ASSISTANT_LISTEN_TIMEOUT": str(self.listen_timeout),
             "ASSISTANT_PHRASE_TIME_LIMIT": str(self.phrase_time_limit),
+            "ASSISTANT_FOLLOW_UP_ENABLED": "true" if self.follow_up_enabled else "false",
+            "ASSISTANT_FOLLOW_UP_TURN_LIMIT": str(self.follow_up_turn_limit),
             "ASSISTANT_TTS_ENABLED": "true" if self.tts_enabled else "false",
             "ASSISTANT_TTS_MODEL": self.tts_model,
             "ASSISTANT_TTS_FALLBACK_MODELS": ",".join(self.tts_fallback_models),
@@ -169,6 +177,7 @@ class AssistantConfig:
             f"Porcupine keyword: {keyword}",
             f"Chat model: {self.chat_model}",
             f"Transcribe model: {self.transcription_model}",
+            f"Follow-up mode: {'yes' if self.follow_up_enabled else 'no'}",
             f"TTS model: {self.tts_model}",
             f"Memory enabled: {'yes' if self.memory_enabled else 'no'}",
             f"TTS enabled: {'yes' if self.tts_enabled else 'no'}",
