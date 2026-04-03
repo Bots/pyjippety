@@ -256,6 +256,17 @@ def _package_flatpak() -> None:
             "https://flathub.org/repo/flathub.flatpakrepo",
         ]
     )
+    _run(
+        [
+            "flatpak",
+            "--user",
+            "install",
+            "-y",
+            "flathub",
+            "org.freedesktop.Platform//24.08",
+            "org.freedesktop.Sdk//24.08",
+        ]
+    )
     _run(["flatpak-builder", "--force-clean", "--repo", str(repo_dir), str(build_root), str(manifest)])
     _run(["flatpak", "build-bundle", str(repo_dir), str(bundle_path), "com.bots.PyJippety"])
 
