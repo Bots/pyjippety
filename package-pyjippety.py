@@ -4,6 +4,7 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -57,13 +58,15 @@ def _ensure_release_dir() -> None:
 def _package_windows() -> None:
     exe_name = f"{APP_NAME}-{_normalize_arch()}.exe"
     scripts_dir = PROJECT_DIR / ".venv" / "Scripts"
-    pyinstaller = scripts_dir / "pyinstaller.exe"
-    if not pyinstaller.exists():
-        pyinstaller = Path(shutil.which("pyinstaller") or "")
-    if pyinstaller.exists():
+    python = scripts_dir / "python.exe"
+    if not python.exists():
+        python = Path(sys.executable)
+    try:
         _run(
             [
-                str(pyinstaller),
+                str(python),
+                "-m",
+                "PyInstaller",
                 "--noconfirm",
                 "--clean",
                 "--windowed",
@@ -80,6 +83,8 @@ def _package_windows() -> None:
         onefile = DIST_DIR / f"{APP_NAME}.exe"
         if onefile.exists():
             shutil.copy2(onefile, RELEASE_DIR / exe_name)
+    except subprocess.CalledProcessError:
+        pass
 
     bundle = _bundle_path()
     archive = RELEASE_DIR / f"{PACKAGE_NAME}-windows-{_normalize_arch()}.zip"
