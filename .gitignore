@@ -3,7 +3,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-.ppn
+*.ppn
 .DS_Store
 Thumbs.db
 .pytest_cache/
