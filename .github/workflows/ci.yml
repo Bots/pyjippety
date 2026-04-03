@@ -18,6 +18,8 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.11"]
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONPATH: src
 
     steps:
       - name: Check out repository
@@ -44,7 +46,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run unit tests
-        run: PYTHONPATH=src python -m unittest discover -s tests
+        run: python -m unittest discover -s tests
 
       - name: Compile Python sources
         run: python -m compileall src tests install-pyjippety.py build-pyjippety-bundle.py
