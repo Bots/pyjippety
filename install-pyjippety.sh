@@ -33,7 +33,6 @@ if [ ! -f "${CONFIG_FILE}" ]; then
   cp "${PROJECT_DIR}/.env.example" "${CONFIG_FILE}"
 fi
 
-cp "${PROJECT_DIR}/assets/pyjippety-logo.svg" "${ICON_PATH}"
 cp "${PROJECT_DIR}/assets/pyjippety-logo.png" "${ICON_PNG_PATH}"
 
 cat > "${WRAPPER_PATH}" <<EOF

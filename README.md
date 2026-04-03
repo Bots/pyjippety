@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/pyjippety-logo.svg" alt="PyJippety logo" width="132">
+  <img src="assets/pyjippety-logo.png" alt="PyJippety logo" width="132">
 </p>
 
 # PyJippety
