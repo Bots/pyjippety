@@ -11,7 +11,7 @@ class FakeListener:
     def calibrate(self):
         self.calibrated = True
 
-    def listen(self):
+    def listen(self, *, timeout=None, phrase_time_limit=None):
         if not self.transcripts:
             return None
         return self.transcripts.pop(0)
@@ -57,9 +57,13 @@ class FakeResponder:
 class FakeSpeaker:
     def __init__(self):
         self.messages = []
+        self.interrupts = 0
 
     def say(self, text):
         self.messages.append(text)
+
+    def interrupt(self):
+        self.interrupts += 1
 
 
 class FakeCuePlayer:
@@ -88,7 +92,10 @@ class HelperTests(unittest.TestCase):
             "ASSISTANT_PHRASE_TIME_LIMIT": "11",
             "ASSISTANT_FOLLOW_UP_ENABLED": "true",
             "ASSISTANT_FOLLOW_UP_TURN_LIMIT": "3",
+            "ASSISTANT_FOLLOW_UP_TIMEOUT": "6.5",
             "ASSISTANT_TTS_ENABLED": "false",
+            "ASSISTANT_SAFE_TOOL_MODE": "false",
+            "ASSISTANT_IDLE_TIMEOUT_SECONDS": "120",
             "ASSISTANT_TTS_MODEL": "tts-1",
             "ASSISTANT_TTS_FALLBACK_MODELS": "tts-1-hd",
             "ASSISTANT_TTS_VOICE": "alloy",
@@ -107,11 +114,15 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(config.transcription_fallback_models, ("gpt-4o-transcribe", "whisper-1"))
         self.assertTrue(config.follow_up_enabled)
         self.assertEqual(config.follow_up_turn_limit, 3)
+        self.assertEqual(config.follow_up_timeout, 6.5)
+        self.assertFalse(config.safe_tool_mode)
+        self.assertEqual(config.idle_timeout_seconds, 120)
         self.assertFalse(config.tts_enabled)
         self.assertEqual(config.audio_device_index, 3)
         self.assertEqual(config.exit_words, ("stop listening", "quit assistant"))
         self.assertEqual(round_trip["ASSISTANT_WAKE_WORD"], "computer")
         self.assertEqual(round_trip["ASSISTANT_FOLLOW_UP_TURN_LIMIT"], "3")
+        self.assertEqual(round_trip["ASSISTANT_IDLE_TIMEOUT_SECONDS"], "120")
         self.assertEqual(round_trip["ASSISTANT_TTS_ENABLED"], "false")
         self.assertEqual(round_trip["ASSISTANT_AUDIO_DEVICE_INDEX"], "3")
 
@@ -147,6 +158,7 @@ class DesktopAssistantTests(unittest.TestCase):
 
         self.assertFalse(keep_running)
         self.assertEqual(detector.stop_requested, 1)
+        self.assertEqual(speaker.interrupts, 1)
         self.assertEqual(responder.prompts, [])
         self.assertEqual(speaker.messages, [])
 

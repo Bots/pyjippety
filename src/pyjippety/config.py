@@ -53,12 +53,15 @@ class AssistantConfig:
     phrase_time_limit: float = 10.0
     follow_up_enabled: bool = True
     follow_up_turn_limit: int = 2
+    follow_up_timeout: float = 8.0
     tts_model: str = "gpt-4o-mini-tts"
     tts_fallback_models: tuple[str, ...] = ("tts-1", "tts-1-hd")
     tts_voice: str = "alloy"
     tts_speed: float = 1.0
     tts_instructions: str | None = None
     tts_enabled: bool = True
+    safe_tool_mode: bool = True
+    idle_timeout_seconds: int = 900
     memory_enabled: bool = True
     memory_turn_limit: int = 6
     memory_fact_limit: int = 24
@@ -109,6 +112,9 @@ class AssistantConfig:
             follow_up_turn_limit=int(
                 values.get("ASSISTANT_FOLLOW_UP_TURN_LIMIT", str(cls.follow_up_turn_limit))
             ),
+            follow_up_timeout=float(
+                values.get("ASSISTANT_FOLLOW_UP_TIMEOUT", str(cls.follow_up_timeout))
+            ),
             tts_model=values.get("ASSISTANT_TTS_MODEL", cls.tts_model),
             tts_fallback_models=parse_csv(
                 values.get("ASSISTANT_TTS_FALLBACK_MODELS", "tts-1,tts-1-hd")
@@ -118,6 +124,10 @@ class AssistantConfig:
             tts_speed=float(values.get("ASSISTANT_TTS_SPEED", str(cls.tts_speed))),
             tts_instructions=values.get("ASSISTANT_TTS_INSTRUCTIONS", "").strip() or None,
             tts_enabled=parse_bool(values.get("ASSISTANT_TTS_ENABLED"), True),
+            safe_tool_mode=parse_bool(values.get("ASSISTANT_SAFE_TOOL_MODE"), True),
+            idle_timeout_seconds=int(
+                values.get("ASSISTANT_IDLE_TIMEOUT_SECONDS", str(cls.idle_timeout_seconds))
+            ),
             memory_enabled=parse_bool(values.get("ASSISTANT_MEMORY_ENABLED"), True),
             memory_turn_limit=int(
                 values.get("ASSISTANT_MEMORY_TURN_LIMIT", str(cls.memory_turn_limit))
@@ -153,12 +163,15 @@ class AssistantConfig:
             "ASSISTANT_PHRASE_TIME_LIMIT": str(self.phrase_time_limit),
             "ASSISTANT_FOLLOW_UP_ENABLED": "true" if self.follow_up_enabled else "false",
             "ASSISTANT_FOLLOW_UP_TURN_LIMIT": str(self.follow_up_turn_limit),
+            "ASSISTANT_FOLLOW_UP_TIMEOUT": str(self.follow_up_timeout),
             "ASSISTANT_TTS_ENABLED": "true" if self.tts_enabled else "false",
             "ASSISTANT_TTS_MODEL": self.tts_model,
             "ASSISTANT_TTS_FALLBACK_MODELS": ",".join(self.tts_fallback_models),
             "ASSISTANT_TTS_VOICE": self.tts_voice,
             "ASSISTANT_TTS_SPEED": str(self.tts_speed),
             "ASSISTANT_TTS_INSTRUCTIONS": self.tts_instructions or "",
+            "ASSISTANT_SAFE_TOOL_MODE": "true" if self.safe_tool_mode else "false",
+            "ASSISTANT_IDLE_TIMEOUT_SECONDS": str(self.idle_timeout_seconds),
             "ASSISTANT_MEMORY_ENABLED": "true" if self.memory_enabled else "false",
             "ASSISTANT_MEMORY_TURN_LIMIT": str(self.memory_turn_limit),
             "ASSISTANT_MEMORY_FACT_LIMIT": str(self.memory_fact_limit),
@@ -178,6 +191,7 @@ class AssistantConfig:
             f"Chat model: {self.chat_model}",
             f"Transcribe model: {self.transcription_model}",
             f"Follow-up mode: {'yes' if self.follow_up_enabled else 'no'}",
+            f"Safe tool mode: {'yes' if self.safe_tool_mode else 'no'}",
             f"TTS model: {self.tts_model}",
             f"Memory enabled: {'yes' if self.memory_enabled else 'no'}",
             f"TTS enabled: {'yes' if self.tts_enabled else 'no'}",

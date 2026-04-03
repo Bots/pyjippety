@@ -19,7 +19,8 @@ def memory_file_path(environment: Mapping[str, str] | None = None) -> Path:
     configured = environment.get("PYJIPPETY_MEMORY_FILE", "").strip()
     if configured:
         return Path(configured).expanduser()
-    return Path.home() / ".config" / "pyjippety" / "memory.json"
+    profile = environment.get("PYJIPPETY_PROFILE", "default").strip() or "default"
+    return Path.home() / ".config" / "pyjippety" / "profiles" / profile / "memory.json"
 
 
 class MemoryStore:
@@ -148,6 +149,30 @@ class MemoryAwareResponder:
         if context:
             enriched_prompt = f"{context}\n\nCurrent user request:\n{prompt}"
         reply = self.base_responder.reply(enriched_prompt)
+        self.memory_store.add_turn(prompt, reply)
+        return reply
+
+    def stream_reply(self, prompt: str, on_text) -> str:
+        if self.memory_store is None:
+            return self.base_responder.stream_reply(prompt, on_text)
+
+        note = extract_memory_command(prompt)
+        if note:
+            self.memory_store.remember(note)
+            message = "Okay. I will remember that."
+            on_text(message)
+            return message
+
+        if is_memory_query(prompt):
+            message = self.memory_store.memory_summary()
+            on_text(message)
+            return message
+
+        context = self.memory_store.build_context_block()
+        enriched_prompt = prompt
+        if context:
+            enriched_prompt = f"{context}\n\nCurrent user request:\n{prompt}"
+        reply = self.base_responder.stream_reply(enriched_prompt, on_text)
         self.memory_store.add_turn(prompt, reply)
         return reply
 

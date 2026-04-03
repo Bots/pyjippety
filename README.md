@@ -22,7 +22,8 @@ The project is built to work in two modes:
 - OpenAI speech output with fallback model support
 - a local wake chime when the wake word is detected
 - lightweight local memory for saved notes and recent exchanges
-- desktop control panel for settings, logs, and typed testing
+- local action plugins for simple desktop tasks
+- desktop control panel for settings, profiles, logs, transcripts, typed testing, memory review, and history
 
 ## Desktop Install
 
@@ -68,6 +69,12 @@ Then:
 5. If you want clarification, ask a quick follow-up right after the reply. You do not need the wake word again until the follow-up window closes.
 
 If you want to test the assistant without using the wake word, use the typed request box in the `Workspace` tab.
+
+Useful desktop shortcuts:
+
+- `F8` toggles voice mode
+- `Ctrl+Space` triggers push-to-talk
+- `Escape` interrupts current output
 
 The app keeps spoken output focused on actual replies. Wake-word detection uses a short local chime instead of speaking status messages back to you.
 
@@ -143,17 +150,27 @@ The runtime pipeline is intentionally simple:
 
 Wake-word detection stays on-device. The transcription, response, and speech steps use the OpenAI API.
 
+The app also has lightweight local actions for requests such as checking the time, checking the date, opening a website, and going to sleep. When safe tool mode is enabled, side-effect actions stay blocked unless you turn that protection off.
+
 ## Interface
 
 The desktop app is split into two focused areas:
 
 - `Workspace`
   - start or stop voice mode
+  - use push-to-talk
   - type requests directly
+  - inspect and resend the last transcript
   - inspect live activity logs
 - `Settings`
   - edit the common settings in a compact basic view
-  - reveal model fallbacks, timing values, memory limits, and prompt tuning through `Show advanced settings`
+  - reveal model fallbacks, timing values, safe tool mode, idle timeout, memory limits, and prompt tuning through `Show advanced settings`
+- `Memory`
+  - review saved notes
+  - edit those notes directly
+  - inspect recent exchanges
+- `History`
+  - review prompts, responses, transcripts, and setup checks over time
 
 The goal is to feel like a small desktop utility, not a chat dashboard.
 
@@ -189,6 +206,9 @@ For manual editing, the main settings are:
 - `ASSISTANT_PHRASE_TIME_LIMIT`
 - `ASSISTANT_FOLLOW_UP_ENABLED`
 - `ASSISTANT_FOLLOW_UP_TURN_LIMIT`
+- `ASSISTANT_FOLLOW_UP_TIMEOUT`
+- `ASSISTANT_SAFE_TOOL_MODE`
+- `ASSISTANT_IDLE_TIMEOUT_SECONDS`
 - `ASSISTANT_AMBIENT_ADJUST_SECONDS`
 - `ASSISTANT_ENERGY_THRESHOLD`
 - `ASSISTANT_AUDIO_DEVICE_INDEX`
@@ -200,6 +220,8 @@ Notes:
 - If your OpenAI project cannot access the default transcription or speech models, the app will try configured fallback models.
 - If speech is disabled or all speech models fail, replies stay visible in the UI log.
 - Memory is stored locally in the user config area and reused as context for later prompts when memory is enabled.
+- Profiles store their own settings, memory file, and action history under `~/.config/pyjippety/profiles/<profile-name>/`.
+- Idle timeout stops voice mode after inactivity and puts the app into a sleeping state until you start it again.
 
 ## Bundle for Distribution
 
@@ -250,6 +272,7 @@ Check:
 ```text
 src/pyjippety/
   bot.py            CLI entrypoint
+  actions.py        lightweight local command plugins
   config.py         config parsing and env loading
   memory.py         local memory storage and memory-aware prompting
   runtime.py        assistant orchestration

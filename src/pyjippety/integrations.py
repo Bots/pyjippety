@@ -6,12 +6,14 @@ import math
 import os
 import struct
 import tempfile
+import threading
 import wave
 from typing import Any, Mapping
 
+from .actions import maybe_run_action
 from .config import AssistantConfig, unique_nonempty
 from .memory import MemoryAwareResponder, build_memory_store
-from .runtime import DesktopAssistant, Speaker
+from .runtime import AssistantEvents, DesktopAssistant, Speaker
 
 
 LOGGER = logging.getLogger(__name__)
@@ -29,6 +31,9 @@ class ConsoleSpeaker:
         LOGGER.info("Assistant: %s", text)
         print(f"Assistant: {text}")
 
+    def interrupt(self) -> None:
+        return
+
 
 class OpenAIResponder:
     def __init__(self, client: Any, config: AssistantConfig) -> None:
@@ -36,6 +41,9 @@ class OpenAIResponder:
         self.config = config
 
     def reply(self, prompt: str) -> str:
+        action_result = maybe_run_action(prompt, self.config)
+        if action_result.handled:
+            return action_result.message
         response = self.client.responses.create(
             model=self.config.chat_model,
             instructions=self.config.system_prompt,
@@ -45,6 +53,29 @@ class OpenAIResponder:
         if text:
             return text
         return "I did not get a response back from the model."
+
+    def stream_reply(self, prompt: str, on_text: Any) -> str:
+        action_result = maybe_run_action(prompt, self.config)
+        if action_result.handled:
+            if action_result.message:
+                on_text(action_result.message)
+            return action_result.message
+
+        chunks: list[str] = []
+        with self.client.responses.stream(
+            model=self.config.chat_model,
+            instructions=self.config.system_prompt,
+            input=prompt,
+        ) as stream:
+            for event in stream:
+                event_type = getattr(event, "type", "")
+                if event_type == "response.output_text.delta":
+                    delta = getattr(event, "delta", "")
+                    if delta:
+                        chunks.append(delta)
+                        on_text(delta)
+            stream.get_final_response()
+        return "".join(chunks).strip() or "I did not get a response back from the model."
 
 
 class OpenAITranscribingListener:
@@ -66,13 +97,19 @@ class OpenAITranscribingListener:
                 source, duration=self.config.ambient_adjust_seconds
             )
 
-    def listen(self) -> str | None:
+    def listen(
+        self, *, timeout: float | None = None, phrase_time_limit: float | None = None
+    ) -> str | None:
         try:
             with self.microphone as source:
                 audio = self.recognizer.listen(
                     source,
-                    timeout=self.config.listen_timeout,
-                    phrase_time_limit=self.config.phrase_time_limit,
+                    timeout=timeout if timeout is not None else self.config.listen_timeout,
+                    phrase_time_limit=(
+                        phrase_time_limit
+                        if phrase_time_limit is not None
+                        else self.config.phrase_time_limit
+                    ),
                 )
         except self.sr.WaitTimeoutError:
             return None
@@ -163,6 +200,7 @@ class OpenAISpeaker:
         self.config = config
         self.pyaudio = pyaudio
         self.disabled = False
+        self.player = LocalAudioPlayer(self.pyaudio)
 
     def say(self, text: str) -> None:
         LOGGER.info("Assistant: %s", text)
@@ -205,14 +243,16 @@ class OpenAISpeaker:
             self._play_wav_file(temp_file.name)
 
     def _play_wav_file(self, path: str) -> None:
-        player = LocalAudioPlayer(self.pyaudio)
         with wave.open(path, "rb") as wav_file:
-            player.play_wav_stream(
+            self.player.play_wav_stream(
                 channels=wav_file.getnchannels(),
                 sample_width=wav_file.getsampwidth(),
                 sample_rate=wav_file.getframerate(),
                 frames=_read_wav_frames(wav_file),
             )
+
+    def interrupt(self) -> None:
+        self.player.interrupt()
 
 
 class LocalAudioPlayer:
@@ -221,6 +261,9 @@ class LocalAudioPlayer:
             import pyaudio as pyaudio_module
 
         self.pyaudio = pyaudio_module
+        self._stream = None
+        self._lock = threading.Lock()
+        self._stop_requested = False
 
     def play_wav_stream(
         self,
@@ -230,6 +273,7 @@ class LocalAudioPlayer:
         sample_rate: int,
         frames: bytes,
     ) -> None:
+        self._stop_requested = False
         pa = self.pyaudio.PyAudio()
         try:
             stream = pa.open(
@@ -239,12 +283,32 @@ class LocalAudioPlayer:
                 output=True,
             )
             try:
-                stream.write(frames)
+                with self._lock:
+                    self._stream = stream
+                chunk = 4096
+                offset = 0
+                while offset < len(frames):
+                    if self._stop_requested:
+                        break
+                    next_offset = min(offset + chunk, len(frames))
+                    stream.write(frames[offset:next_offset])
+                    offset = next_offset
             finally:
+                with self._lock:
+                    self._stream = None
                 stream.stop_stream()
                 stream.close()
         finally:
             pa.terminate()
+
+    def interrupt(self) -> None:
+        self._stop_requested = True
+        with self._lock:
+            if self._stream is not None:
+                try:
+                    self._stream.stop_stream()
+                except Exception:
+                    pass
 
 
 def _read_wav_frames(wav_file: wave.Wave_read) -> bytes:
@@ -331,8 +395,18 @@ def build_openai_client(environment: Mapping[str, str] | None = None) -> Any:
     return OpenAI(api_key=api_key)
 
 
+def list_microphones() -> list[tuple[int, str]]:
+    try:
+        import speech_recognition as sr
+    except ImportError:
+        return []
+    return list(enumerate(sr.Microphone.list_microphone_names()))
+
+
 def build_live_assistant(
-    config: AssistantConfig, environment: Mapping[str, str] | None = None
+    config: AssistantConfig,
+    environment: Mapping[str, str] | None = None,
+    events: AssistantEvents | None = None,
 ) -> DesktopAssistant:
     environment = environment or os.environ
     picovoice_access_key = environment.get("PICOVOICE_ACCESS_KEY")
@@ -348,6 +422,7 @@ def build_live_assistant(
         responder=MemoryAwareResponder(OpenAIResponder(client, config), memory_store),
         speaker=build_speaker(client, config),
         cue_player=WakeChimePlayer(),
+        events=events,
     )
 
 
