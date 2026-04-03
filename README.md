@@ -156,21 +156,17 @@ The app also has lightweight local actions for requests such as checking the tim
 
 The desktop app is split into two focused areas:
 
-- `Workspace`
+- `Use`
   - start or stop voice mode
   - use push-to-talk
   - type requests directly
   - inspect and resend the last transcript
   - inspect live activity logs
-- `Settings`
+  - keep memory notes and recent activity nearby without leaving the main work area
+- `Setup`
+  - manage profiles and personality presets
   - edit the common settings in a compact basic view
   - reveal model fallbacks, timing values, safe tool mode, idle timeout, memory limits, and prompt tuning through `Show advanced settings`
-- `Memory`
-  - review saved notes
-  - edit those notes directly
-  - inspect recent exchanges
-- `History`
-  - review prompts, responses, transcripts, and setup checks over time
 
 The goal is to feel like a small desktop utility, not a chat dashboard.
 

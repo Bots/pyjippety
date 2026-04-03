@@ -306,128 +306,80 @@ class PyjippetyApp:
         session_card = self._card(parent)
         session_card.pack(fill="x")
 
-        profile_row = tk.Frame(session_card, bg=CARD)
-        profile_row.pack(fill="x", pady=(0, 12))
-        tk.Label(
-            profile_row,
-            text="Profile",
-            bg=CARD,
-            fg=MUTED,
-        ).pack(anchor="w")
-        self.profile_combo = ttk.Combobox(
-            profile_row,
-            textvariable=self.profile_var,
-            state="readonly",
-            values=("default",),
-        )
-        self.profile_combo.pack(fill="x", pady=(4, 0))
-        self.profile_combo.bind("<<ComboboxSelected>>", lambda _: self.switch_profile())
-
         tk.Label(
             session_card,
-            text="Assistant",
+            text="Live session",
             bg=CARD,
             fg=TEXT,
             font=("TkDefaultFont", 12, "bold"),
         ).pack(anchor="w")
         tk.Label(
             session_card,
-            text="Start or stop wake-word listening, then use the workspace to test prompts and adjust settings.",
+            text="Start listening, push one question through, or stop the session.",
             bg=CARD,
             fg=MUTED,
             justify="left",
             wraplength=250,
         ).pack(anchor="w", pady=(6, 14))
+        action_grid = tk.Frame(session_card, bg=CARD)
+        action_grid.pack(fill="x")
+        action_grid.grid_columnconfigure(0, weight=1)
+        action_grid.grid_columnconfigure(1, weight=1)
 
         self.start_button = ttk.Button(
-            session_card,
-            text="Start voice mode",
+            action_grid,
+            text="Start",
             command=self.start_voice_mode,
             style="Primary.TButton",
         )
-        self.start_button.pack(fill="x")
+        self.start_button.grid(row=0, column=0, sticky="ew")
 
         self.stop_button = ttk.Button(
-            session_card,
-            text="Stop voice mode",
+            action_grid,
+            text="Stop",
             command=self.stop_voice_mode,
             style="Danger.TButton",
         )
-        self.stop_button.pack(fill="x", pady=(10, 0))
-
-        self.save_button = ttk.Button(
-            session_card,
-            text="Save settings",
-            command=self.save_settings,
-            style="Secondary.TButton",
-        )
-        self.save_button.pack(fill="x", pady=(18, 0))
-
-        self.reload_button = ttk.Button(
-            session_card,
-            text="Reload settings",
-            command=self.reload_settings,
-            style="Secondary.TButton",
-        )
-        self.reload_button.pack(fill="x", pady=(10, 0))
+        self.stop_button.grid(row=0, column=1, sticky="ew", padx=(10, 0))
 
         self.push_to_talk_button = ttk.Button(
-            session_card,
+            action_grid,
             text="Push to talk",
             command=self.push_to_talk,
             style="Secondary.TButton",
         )
-        self.push_to_talk_button.pack(fill="x", pady=(10, 0))
+        self.push_to_talk_button.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+
+        self.interrupt_button = ttk.Button(
+            action_grid,
+            text="Interrupt",
+            command=self.interrupt_current_output,
+            style="Secondary.TButton",
+        )
+        self.interrupt_button.grid(row=1, column=1, sticky="ew", padx=(10, 0), pady=(10, 0))
 
         self.test_button = ttk.Button(
-            session_card,
+            action_grid,
             text="Test setup",
             command=self.test_setup,
             style="Secondary.TButton",
         )
-        self.test_button.pack(fill="x", pady=(10, 0))
+        self.test_button.grid(row=2, column=0, sticky="ew", pady=(10, 0))
 
         self.sleep_button = ttk.Button(
-            session_card,
-            text="Sleep now",
+            action_grid,
+            text="Sleep",
             command=self.sleep_voice_mode,
             style="Secondary.TButton",
         )
-        self.sleep_button.pack(fill="x", pady=(10, 0))
-
-        self.new_profile_entry = ttk.Entry(session_card, style="App.TEntry")
-        self.new_profile_entry.pack(fill="x", pady=(14, 0), ipady=2)
-        self.new_profile_entry.insert(0, "new-profile")
-        ttk.Button(
-            session_card,
-            text="Save as profile",
-            command=self.save_as_profile,
-            style="Secondary.TButton",
-        ).pack(fill="x", pady=(10, 0))
-
-        preset_row = tk.Frame(session_card, bg=CARD)
-        preset_row.pack(fill="x", pady=(14, 0))
-        tk.Label(preset_row, text="Personality", bg=CARD, fg=MUTED).pack(anchor="w")
-        self.preset_combo = ttk.Combobox(
-            preset_row,
-            textvariable=self.preset_var,
-            state="readonly",
-            values=tuple(PERSONALITY_PRESETS.keys()),
-        )
-        self.preset_combo.pack(fill="x", pady=(4, 0))
-        ttk.Button(
-            preset_row,
-            text="Apply preset",
-            command=self.apply_preset,
-            style="Secondary.TButton",
-        ).pack(fill="x", pady=(10, 0))
+        self.sleep_button.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=(10, 0))
 
         setup_card = self._card(parent)
         setup_card.pack(fill="x", pady=(16, 0))
 
         tk.Label(
             setup_card,
-            text="Current setup",
+            text="At a glance",
             bg=CARD,
             fg=TEXT,
             font=("TkDefaultFont", 12, "bold"),
@@ -444,58 +396,14 @@ class PyjippetyApp:
         )
         self.config_summary.pack(fill="x", pady=(10, 0))
 
-        install_card = self._card(parent)
-        install_card.pack(fill="x", pady=(16, 0))
-
         tk.Label(
-            install_card,
-            text="Config file",
-            bg=CARD,
-            fg=TEXT,
-            font=("TkDefaultFont", 12, "bold"),
-        ).pack(anchor="w")
-        tk.Label(
-            install_card,
-            text=str(self.env_path),
-            bg=CARD,
-            fg=MUTED,
-            justify="left",
-            wraplength=250,
-        ).pack(anchor="w", pady=(6, 0))
-        tk.Label(
-            install_card,
-            text="The installer uses this file automatically, so the app can be launched from a desktop shortcut.",
+            setup_card,
+            text="F8 starts or stops listening. Ctrl+Space uses push-to-talk. Escape interrupts playback.",
             bg=CARD,
             fg=MUTED,
             justify="left",
             wraplength=250,
         ).pack(anchor="w", pady=(10, 0))
-
-        memory_card = self._card(parent)
-        memory_card.pack(fill="x", pady=(16, 0))
-        tk.Label(
-            memory_card,
-            text="Memory",
-            bg=CARD,
-            fg=TEXT,
-            font=("TkDefaultFont", 12, "bold"),
-        ).pack(anchor="w")
-        self.memory_summary = tk.Label(
-            memory_card,
-            text="",
-            justify="left",
-            anchor="nw",
-            bg=CARD,
-            fg=MUTED,
-            wraplength=250,
-        )
-        self.memory_summary.pack(fill="x", pady=(8, 10))
-        ttk.Button(
-            memory_card,
-            text="Clear memory",
-            command=self.clear_memory,
-            style="Secondary.TButton",
-        ).pack(fill="x")
 
     def _build_content(self, parent: ttk.Frame) -> None:
         notebook = ttk.Notebook(parent, style="Notebook.TNotebook")
@@ -503,36 +411,31 @@ class PyjippetyApp:
 
         workspace = ttk.Frame(notebook, style="App.TFrame")
         settings = ttk.Frame(notebook, style="App.TFrame")
-        memory = ttk.Frame(notebook, style="App.TFrame")
-        history = ttk.Frame(notebook, style="App.TFrame")
-        notebook.add(workspace, text="Workspace")
-        notebook.add(settings, text="Settings")
-        notebook.add(memory, text="Memory")
-        notebook.add(history, text="History")
+        notebook.add(workspace, text="Use")
+        notebook.add(settings, text="Setup")
 
         self._build_workspace_tab(workspace)
         self._build_settings_tab(settings)
-        self._build_memory_tab(memory)
-        self._build_history_tab(history)
 
     def _build_workspace_tab(self, parent: ttk.Frame) -> None:
-        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=2)
+        parent.grid_columnconfigure(1, weight=1)
         parent.grid_rowconfigure(2, weight=1)
 
         prompt_card = self._card(parent, padding=(18, 18))
-        prompt_card.grid(row=0, column=0, sticky="ew", padx=4, pady=(4, 16))
+        prompt_card.grid(row=0, column=0, columnspan=2, sticky="ew", padx=4, pady=(4, 16))
         prompt_card.grid_columnconfigure(0, weight=1)
 
         tk.Label(
             prompt_card,
-            text="Try a typed request",
+            text="Type a request",
             bg=CARD,
             fg=TEXT,
             font=("TkDefaultFont", 12, "bold"),
         ).grid(row=0, column=0, sticky="w")
         tk.Label(
             prompt_card,
-            text="Use this when you want to test replies without waiting for the wake word.",
+            text="Quick way to test the assistant without using the wake word.",
             bg=CARD,
             fg=MUTED,
             justify="left",
@@ -559,31 +462,31 @@ class PyjippetyApp:
         action_row.grid_columnconfigure(0, weight=1)
         tk.Label(
             action_row,
-            text="Tip: press Ctrl+Enter to send.",
+            text="Ctrl+Enter sends",
             bg=CARD,
             fg=MUTED,
         ).grid(row=0, column=0, sticky="w")
         self.ask_button = ttk.Button(
             action_row,
-            text="Send request",
+            text="Ask",
             command=self.ask_from_text,
             style="Primary.TButton",
         )
         self.ask_button.grid(row=0, column=1, sticky="e")
 
         transcript_card = self._card(parent, padding=(18, 18))
-        transcript_card.grid(row=1, column=0, sticky="ew", padx=4, pady=(0, 16))
+        transcript_card.grid(row=1, column=0, columnspan=2, sticky="ew", padx=4, pady=(0, 16))
         transcript_card.grid_columnconfigure(0, weight=1)
         tk.Label(
             transcript_card,
-            text="Last heard transcript",
+            text="Last transcript",
             bg=CARD,
             fg=TEXT,
             font=("TkDefaultFont", 12, "bold"),
         ).grid(row=0, column=0, sticky="w")
         tk.Label(
             transcript_card,
-            text="You can correct this and resend it if speech recognition was close but not perfect.",
+            text="Correct it and send again if speech recognition was close but not right.",
             bg=CARD,
             fg=MUTED,
         ).grid(row=1, column=0, sticky="w", pady=(4, 10))
@@ -598,7 +501,7 @@ class PyjippetyApp:
         actions.grid_columnconfigure(0, weight=1)
         ttk.Button(
             actions,
-            text="Resend transcript",
+            text="Send transcript",
             command=self.resend_last_transcript,
             style="Secondary.TButton",
         ).grid(row=0, column=1, sticky="e")
@@ -623,7 +526,7 @@ class PyjippetyApp:
         log_header.grid_columnconfigure(0, weight=1)
         tk.Label(
             log_header,
-            text="Activity",
+            text="Session log",
             bg=CARD,
             fg=TEXT,
             font=("TkDefaultFont", 12, "bold"),
@@ -648,18 +551,31 @@ class PyjippetyApp:
         )
         self.log_view.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
         self.log_view.configure(state="disabled")
+        side_card = self._card(parent, padding=(18, 18))
+        side_card.grid(row=2, column=1, sticky="nsew", padx=(12, 4), pady=(0, 4))
+        side_card.grid_columnconfigure(0, weight=1)
+        side_card.grid_rowconfigure(5, weight=1)
 
-    def _build_memory_tab(self, parent: ttk.Frame) -> None:
-        parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(1, weight=1)
-
-        notes_card = self._card(parent, padding=(18, 18))
-        notes_card.grid(row=0, column=0, sticky="ew", padx=4, pady=(4, 16))
-        notes_card.grid_columnconfigure(0, weight=1)
-        tk.Label(notes_card, text="Saved notes", bg=CARD, fg=TEXT, font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(
+            side_card,
+            text="Notes",
+            bg=CARD,
+            fg=TEXT,
+            font=("TkDefaultFont", 12, "bold"),
+        ).grid(row=0, column=0, sticky="w")
+        self.memory_summary = tk.Label(
+            side_card,
+            text="",
+            justify="left",
+            anchor="nw",
+            bg=CARD,
+            fg=MUTED,
+            wraplength=300,
+        )
+        self.memory_summary.grid(row=1, column=0, sticky="ew", pady=(8, 10))
         self.memory_notes_box = tk.Text(
-            notes_card,
-            height=7,
+            side_card,
+            height=6,
             wrap="word",
             bg="#fffdf9",
             fg=TEXT,
@@ -670,47 +586,40 @@ class PyjippetyApp:
             padx=10,
             pady=10,
         )
-        self.memory_notes_box.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        self.memory_notes_box.grid(row=2, column=0, sticky="ew")
+        memory_actions = tk.Frame(side_card, bg=CARD)
+        memory_actions.grid(row=3, column=0, sticky="ew", pady=(10, 14))
         ttk.Button(
-            notes_card,
+            memory_actions,
             text="Save notes",
             command=self.save_memory_notes,
             style="Secondary.TButton",
-        ).grid(row=2, column=0, sticky="e", pady=(10, 0))
+        ).pack(side="left")
+        ttk.Button(
+            memory_actions,
+            text="Clear memory",
+            command=self.clear_memory,
+            style="Secondary.TButton",
+        ).pack(side="left", padx=(10, 0))
 
-        recent_card = self._card(parent, padding=(18, 18))
-        recent_card.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
-        recent_card.grid_columnconfigure(0, weight=1)
-        recent_card.grid_rowconfigure(1, weight=1)
-        tk.Label(recent_card, text="Recent exchanges", bg=CARD, fg=TEXT, font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
-        self.memory_turns_view = tk.Text(
-            recent_card,
-            wrap="word",
-            bg="#fffdf9",
+        history_header = tk.Frame(side_card, bg=CARD)
+        history_header.grid(row=4, column=0, sticky="ew")
+        history_header.grid_columnconfigure(0, weight=1)
+        tk.Label(
+            history_header,
+            text="Recent",
+            bg=CARD,
             fg=TEXT,
-            relief="flat",
-            highlightthickness=1,
-            highlightbackground=BORDER,
-            padx=10,
-            pady=10,
-        )
-        self.memory_turns_view.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
-        self.memory_turns_view.configure(state="disabled")
-
-    def _build_history_tab(self, parent: ttk.Frame) -> None:
-        parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(0, weight=1)
-        card = self._card(parent, padding=(18, 18))
-        card.grid(row=0, column=0, sticky="nsew", padx=4, pady=(4, 4))
-        card.grid_columnconfigure(0, weight=1)
-        card.grid_rowconfigure(1, weight=1)
-        header = tk.Frame(card, bg=CARD)
-        header.grid(row=0, column=0, sticky="ew")
-        header.grid_columnconfigure(0, weight=1)
-        tk.Label(header, text="Action history", bg=CARD, fg=TEXT, font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
-        ttk.Button(header, text="Clear history", command=self.clear_history, style="Secondary.TButton").grid(row=0, column=1, sticky="e")
+            font=("TkDefaultFont", 12, "bold"),
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Button(
+            history_header,
+            text="Clear",
+            command=self.clear_history,
+            style="Secondary.TButton",
+        ).grid(row=0, column=1, sticky="e")
         self.history_view = tk.Text(
-            card,
+            side_card,
             wrap="word",
             bg="#fffdf9",
             fg=TEXT,
@@ -720,7 +629,7 @@ class PyjippetyApp:
             padx=10,
             pady=10,
         )
-        self.history_view.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
+        self.history_view.grid(row=5, column=0, sticky="nsew", pady=(10, 0))
         self.history_view.configure(state="disabled")
 
     def _build_settings_tab(self, parent: ttk.Frame) -> None:
@@ -729,26 +638,76 @@ class PyjippetyApp:
 
         toolbar = self._card(parent, padding=(18, 14))
         toolbar.grid(row=0, column=0, sticky="ew", padx=4, pady=(4, 16))
-        toolbar.grid_columnconfigure(0, weight=1)
+        toolbar.grid_columnconfigure(1, weight=1)
         tk.Label(
             toolbar,
-            text="Settings",
+            text="Setup",
             bg=CARD,
             fg=TEXT,
             font=("TkDefaultFont", 12, "bold"),
         ).grid(row=0, column=0, sticky="w")
         tk.Label(
             toolbar,
-            text="Changes take effect immediately for typed requests and the next time you start voice mode.",
+            text="Profiles, presets, devices, and behavior live here.",
             bg=CARD,
             fg=MUTED,
             justify="left",
-        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(4, 12))
 
-        button_row = tk.Frame(toolbar, bg=CARD)
-        button_row.grid(row=0, column=1, rowspan=2, sticky="e")
-        ttk.Button(button_row, text="Save", command=self.save_settings, style="Primary.TButton").pack(side="left")
-        ttk.Button(button_row, text="Reload", command=self.reload_settings, style="Secondary.TButton").pack(side="left", padx=(10, 0))
+        controls = tk.Frame(toolbar, bg=CARD)
+        controls.grid(row=0, column=1, rowspan=2, sticky="e")
+        controls.grid_columnconfigure(1, weight=1)
+        controls.grid_columnconfigure(3, weight=1)
+
+        tk.Label(controls, text="Profile", bg=CARD, fg=MUTED).grid(row=0, column=0, sticky="w")
+        self.profile_combo = ttk.Combobox(
+            controls,
+            textvariable=self.profile_var,
+            state="readonly",
+            values=("default",),
+            width=14,
+        )
+        self.profile_combo.grid(row=0, column=1, sticky="ew")
+        self.profile_combo.bind("<<ComboboxSelected>>", lambda _: self.switch_profile())
+
+        self.new_profile_entry = ttk.Entry(controls, style="App.TEntry", width=14)
+        self.new_profile_entry.grid(row=0, column=2, padx=(10, 0), sticky="ew", ipady=1)
+        self.new_profile_entry.insert(0, "new-profile")
+        ttk.Button(
+            controls,
+            text="Save as",
+            command=self.save_as_profile,
+            style="Secondary.TButton",
+        ).grid(row=0, column=3, padx=(10, 0), sticky="ew")
+
+        tk.Label(controls, text="Preset", bg=CARD, fg=MUTED).grid(row=1, column=0, sticky="w", pady=(10, 0))
+        self.preset_combo = ttk.Combobox(
+            controls,
+            textvariable=self.preset_var,
+            state="readonly",
+            values=tuple(PERSONALITY_PRESETS.keys()),
+            width=14,
+        )
+        self.preset_combo.grid(row=1, column=1, sticky="ew", pady=(10, 0))
+        ttk.Button(
+            controls,
+            text="Apply preset",
+            command=self.apply_preset,
+            style="Secondary.TButton",
+        ).grid(row=1, column=2, padx=(10, 0), sticky="ew", pady=(10, 0))
+        ttk.Button(
+            controls,
+            text="Save",
+            command=self.save_settings,
+            style="Primary.TButton",
+        ).grid(row=1, column=3, padx=(10, 0), sticky="ew", pady=(10, 0))
+        ttk.Button(
+            controls,
+            text="Reload",
+            command=self.reload_settings,
+            style="Secondary.TButton",
+        ).grid(row=1, column=4, padx=(10, 0), sticky="ew", pady=(10, 0))
+
         self.show_advanced_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             toolbar,
@@ -1054,20 +1013,9 @@ class PyjippetyApp:
         if store is None:
             self.memory_summary.configure(text="Memory is off.")
             self.memory_notes_box.delete("1.0", "end")
-            self.memory_turns_view.configure(state="normal")
-            self.memory_turns_view.delete("1.0", "end")
-            self.memory_turns_view.configure(state="disabled")
             return
         self.memory_notes_box.delete("1.0", "end")
         self.memory_notes_box.insert("1.0", "\n".join(store.state.facts))
-        self.memory_turns_view.configure(state="normal")
-        self.memory_turns_view.delete("1.0", "end")
-        for turn in store.state.turns:
-            self.memory_turns_view.insert(
-                "end",
-                f"User: {turn['user']}\nAssistant: {turn['assistant']}\n\n",
-            )
-        self.memory_turns_view.configure(state="disabled")
         self.memory_summary.configure(
             text=(
                 f"File: {memory_file_path(environment)}\n"
