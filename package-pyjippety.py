@@ -55,6 +55,13 @@ def _ensure_release_dir() -> None:
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _cleanup_release_temp_dirs() -> None:
+    for name in ("deb-root", "AppDir", "flatpak-build", "flatpak-repo", "flatpak-src"):
+        path = RELEASE_DIR / name
+        if path.exists():
+            shutil.rmtree(path, ignore_errors=True)
+
+
 def _python_executable() -> Path:
     scripts_dir = PROJECT_DIR / ".venv" / ("Scripts" if platform.system() == "Windows" else "bin")
     candidate = scripts_dir / ("python.exe" if platform.system() == "Windows" else "python")
@@ -373,6 +380,7 @@ def main() -> None:
     else:
         _package_linux()
         _package_flatpak()
+    _cleanup_release_temp_dirs()
     print(f"Release artifacts written to {RELEASE_DIR}")
 
 
