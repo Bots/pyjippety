@@ -12,6 +12,7 @@ from tkinter import ttk
 
 from .config import AssistantConfig, env_file_path, load_environment
 from .controller import AppController
+from .tray import build_tray_manager
 from .ui_shared import (
     ACCENT,
     ACCENT_ACTIVE,
@@ -69,6 +70,8 @@ class PyjippetyApp(PyjippetyViewMixin):
         self.device_map: dict[str, str] = {}
         self.logo_image: tk.PhotoImage | None = None
         self.logo_mark: tk.PhotoImage | None = None
+        self.tray_manager = None
+        self.window_hidden = False
 
         load_environment()
         self.config = AssistantConfig.from_env()
@@ -79,6 +82,7 @@ class PyjippetyApp(PyjippetyViewMixin):
         self._build_layout()
         self.controller.load_profiles()
         self.reload_settings()
+        self._init_tray()
         self.controller.maybe_show_setup_wizard()
         self._poll_logs()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -93,6 +97,34 @@ class PyjippetyApp(PyjippetyViewMixin):
         root_logger.setLevel(logging.INFO)
         root_logger.addHandler(handler)
         self.log_handler = handler
+
+    def _init_tray(self) -> None:
+        icon_path = None
+        for path in self._candidate_logo_paths():
+            if path.exists():
+                icon_path = path
+                break
+        show_cb = lambda: self.root.after(0, self.show_window)
+        hide_cb = lambda: self.root.after(0, self.hide_window)
+        toggle_cb = lambda: self.root.after(0, self._toggle_voice_mode)
+        quit_cb = lambda: self.root.after(0, self.quit_app)
+        if icon_path is None:
+            self.tray_manager = build_tray_manager(
+                icon_path=Path(),
+                on_show=show_cb,
+                on_hide=hide_cb,
+                on_toggle_voice=toggle_cb,
+                on_quit=quit_cb,
+            )
+            return
+        self.tray_manager = build_tray_manager(
+            icon_path=icon_path,
+            on_show=show_cb,
+            on_hide=hide_cb,
+            on_toggle_voice=toggle_cb,
+            on_quit=quit_cb,
+        )
+        self.tray_manager.start()
 
     def _apply_device_selection(self) -> None:
         return
@@ -174,6 +206,8 @@ class PyjippetyApp(PyjippetyViewMixin):
         running = text in {"Starting", "Listening", "Follow-up", "Thinking", "Stopping"}
         self.start_button.configure(state="disabled" if running else "normal")
         self.stop_button.configure(state="normal" if running else "disabled")
+        if self.tray_manager is not None:
+            self.tray_manager.update_status(text)
 
     def set_status(self, text: str) -> None:
         self._set_status(text)
@@ -233,6 +267,27 @@ class PyjippetyApp(PyjippetyViewMixin):
             self.stop_voice_mode()
         else:
             self.start_voice_mode()
+
+    def hide_window(self) -> None:
+        self.window_hidden = True
+        self.root.withdraw()
+        if self.tray_manager is not None:
+            self.tray_manager.notify_hidden()
+
+    def show_window(self) -> None:
+        self.window_hidden = False
+        self.root.after(0, self.root.deiconify)
+        self.root.after(0, self.root.lift)
+        self.root.after(0, self.root.focus_force)
+
+    def quit_app(self) -> None:
+        if self.assistant is not None:
+            self.assistant.request_stop()
+        self.interrupt_current_output()
+        if self.tray_manager is not None:
+            self.tray_manager.stop()
+        logging.getLogger().removeHandler(self.log_handler)
+        self.root.after(0, self.root.destroy)
 
     def sleep_voice_mode(self) -> None:
         self.stop_voice_mode()
@@ -450,11 +505,10 @@ class PyjippetyApp(PyjippetyViewMixin):
         self.controller.record_history("response", response)
 
     def _on_close(self) -> None:
-        if self.assistant is not None:
-            self.assistant.request_stop()
-        self.interrupt_current_output()
-        logging.getLogger().removeHandler(self.log_handler)
-        self.root.destroy()
+        if self.tray_manager is not None and getattr(self.tray_manager, "available", False):
+            self.hide_window()
+            return
+        self.quit_app()
 
 
 def main() -> None:

@@ -24,6 +24,7 @@ The project is built to work in two modes:
 - lightweight local memory for saved notes and recent exchanges
 - local action plugins for simple desktop tasks
 - desktop control panel for settings, profiles, logs, transcripts, typed testing, memory review, and history
+- optional tray/menu bar indicator for background operation
 
 ## Install
 
@@ -59,7 +60,7 @@ Typical install locations:
 
 System requirements by platform:
 
-- Linux: `python3-tk` and PortAudio development/runtime packages are commonly required
+- Linux: `python3-tk`, PortAudio development/runtime packages, and a supported tray backend are commonly required
 - macOS: use a Python build with Tk included; Homebrew PortAudio is commonly needed for PyAudio
 - Windows: use a standard Python.org install with Tk included; a working build of PyAudio is still required
 
@@ -93,6 +94,8 @@ Useful desktop shortcuts:
 - `F8` toggles voice mode
 - `Ctrl+Space` triggers push-to-talk
 - `Escape` interrupts current output
+
+If tray support is available, closing the window hides PyJippety to the system tray or menu bar instead of exiting. You can reopen it from the tray icon.
 
 The app keeps spoken output focused on actual replies. Wake-word detection uses a short local chime instead of speaking status messages back to you.
 

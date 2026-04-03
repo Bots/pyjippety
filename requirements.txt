@@ -3,4 +3,6 @@ pvporcupine>=4.0.0
 pvrecorder>=1.2.0
 SpeechRecognition>=3.10.4
 PyAudio>=0.2.14
+pystray>=0.19.5
+Pillow>=10.0.0
 python-dotenv>=1.0.1
