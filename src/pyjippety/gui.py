@@ -149,6 +149,9 @@ class PyjippetyApp(PyjippetyViewMixin):
             values[key] = "true" if variable.get() else "false"
         return values
 
+    def collect_form_values(self) -> dict[str, str]:
+        return self._collect_form_values()
+
     def _build_environment(self) -> dict[str, str]:
         return self.controller.build_environment()
 
@@ -172,11 +175,17 @@ class PyjippetyApp(PyjippetyViewMixin):
         self.start_button.configure(state="disabled" if running else "normal")
         self.stop_button.configure(state="normal" if running else "disabled")
 
+    def set_status(self, text: str) -> None:
+        self._set_status(text)
+
     def _append_log(self, message: str) -> None:
         self.log_view.configure(state="normal")
         self.log_view.insert("end", f"{message}\n")
         self.log_view.see("end")
         self.log_view.configure(state="disabled")
+
+    def append_log(self, message: str) -> None:
+        self._append_log(message)
 
     def clear_log(self) -> None:
         self.log_view.configure(state="normal")
@@ -391,6 +400,9 @@ class PyjippetyApp(PyjippetyViewMixin):
             self.ui_queue.put(("status", "Idle"))
         finally:
             self.ui_queue.put(("assistant_stopped", None))
+
+    def run_assistant_thread(self) -> None:
+        self._run_assistant_thread()
 
     def stop_voice_mode(self) -> None:
         if self.assistant is None:

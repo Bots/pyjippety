@@ -122,12 +122,15 @@ class AppController:
             return
         self.app.root.after(250, self.app.show_setup_wizard)
 
+    def _log(self, message: str) -> None:
+        self.app._append_log(message)
+
     def save_memory_notes(self) -> None:
         environment = self.build_environment()
         self.refresh_active_config(environment)
         store = build_memory_store(self.app.config, environment)
         if store is None:
-            self.app.append_log("Memory is disabled.")
+            self._log("Memory is disabled.")
             return
         notes = [
             line.strip()
@@ -137,7 +140,7 @@ class AppController:
         store.state.facts = notes[: self.app.config.memory_fact_limit]
         store.save()
         self.refresh_memory_summary(environment)
-        self.app.append_log("Saved memory notes.")
+        self._log("Saved memory notes.")
         self.record_history("memory", "saved notes")
 
     def clear_memory(self) -> None:
@@ -145,35 +148,43 @@ class AppController:
         self.refresh_active_config(environment)
         store = build_memory_store(self.app.config, environment)
         if store is None:
-            self.app.append_log("Memory is disabled.")
+            self._log("Memory is disabled.")
             return
         store.clear()
         self.refresh_memory_summary(environment)
-        self.app.append_log("Memory cleared.")
+        self._log("Memory cleared.")
         self.record_history("memory", "cleared")
 
     def start_voice_mode(self) -> None:
         if self.app.assistant_thread and self.app.assistant_thread.is_alive():
-            self.app.append_log("Voice mode is already running.")
+            self._log("Voice mode is already running.")
             return
         environment = self.build_environment()
         self.refresh_active_config(environment)
-        self.app.set_status("Starting")
+        self.app._set_status("Starting")
         try:
             self.app.assistant = build_live_assistant(
                 self.app.config, environment=environment, events=self.app
             )
         except Exception as exc:
-            self.app.append_log(f"Startup failed: {exc}")
-            self.app.set_status("Error")
+            message = str(exc)
+            if "Couldn't find keyword file" in message:
+                message = (
+                    f"Startup failed: {message} "
+                    "Open Setup and clear the custom keyword file path or point it to a valid .ppn file."
+                )
+            else:
+                message = f"Startup failed: {message}"
+            self._log(message)
+            self.app._set_status("Error")
             return
         self.app.assistant_thread = threading.Thread(
-            target=self.app.run_assistant_thread,
+            target=self.app._run_assistant_thread,
             name="pyjippety-voice",
             daemon=True,
         )
         self.app.assistant_thread.start()
-        self.app.set_status("Listening")
+        self.app._set_status("Listening")
 
     def run_manual_prompt(self, prompt: str, environment: dict[str, str]) -> None:
         self.app.ui_queue.put(("status", "Thinking"))
@@ -214,7 +225,7 @@ class AppController:
             return
         environment = self.build_environment()
         self.refresh_active_config(environment)
-        self.app.append_log("Push-to-talk started.")
+        self._log("Push-to-talk started.")
 
         def run_push_to_talk() -> None:
             self.app.ui_queue.put(("status", "Thinking"))
@@ -246,7 +257,7 @@ class AppController:
 
     def test_setup(self) -> None:
         environment = self.build_environment()
-        self.app.append_log("Running setup checks...")
+        self._log("Running setup checks...")
 
         def run_checks() -> None:
             config = AssistantConfig.from_mapping(environment)

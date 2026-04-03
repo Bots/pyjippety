@@ -8,6 +8,7 @@ import struct
 import tempfile
 import threading
 import wave
+from contextlib import contextmanager
 from typing import Any, Mapping
 
 from .actions import maybe_run_action
@@ -17,6 +18,25 @@ from .runtime import AssistantEvents, DesktopAssistant, Speaker
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+@contextmanager
+def _suppress_stderr_fd() -> Any:
+    """Temporarily silence native library stderr noise during audio probing."""
+    stderr_fd = None
+    saved_fd = None
+    devnull_fd = None
+    try:
+        stderr_fd = os.dup(2)
+        devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull_fd, 2)
+        yield
+    finally:
+        if stderr_fd is not None:
+            os.dup2(stderr_fd, 2)
+            os.close(stderr_fd)
+        if devnull_fd is not None:
+            os.close(devnull_fd)
 
 
 def audio_to_wav_buffer(audio: Any) -> io.BytesIO:
@@ -400,7 +420,12 @@ def list_microphones() -> list[tuple[int, str]]:
         import speech_recognition as sr
     except ImportError:
         return []
-    return list(enumerate(sr.Microphone.list_microphone_names()))
+    try:
+        with _suppress_stderr_fd():
+            names = sr.Microphone.list_microphone_names()
+    except Exception:
+        return []
+    return list(enumerate(names))
 
 
 def build_live_assistant(
