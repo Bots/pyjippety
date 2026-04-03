@@ -17,6 +17,7 @@ The project is built to work in two modes:
 - OpenAI chat responses
 - OpenAI speech output with fallback model support
 - a local wake chime when the wake word is detected
+- lightweight local memory for saved notes and recent exchanges
 - desktop control panel for settings, logs, and typed testing
 
 ## Desktop Install
@@ -64,6 +65,18 @@ Then:
 If you want to test the assistant without using the wake word, use the typed request box in the `Workspace` tab.
 
 The app keeps spoken output focused on actual replies. Wake-word detection uses a short local chime instead of speaking status messages back to you.
+
+If you want the assistant to remember something, say or type:
+
+```text
+remember that I prefer short answers
+```
+
+You can also ask:
+
+```text
+what do you remember about me
+```
 
 ## Developer Setup
 
@@ -134,7 +147,7 @@ The desktop app is split into two focused areas:
   - inspect live activity logs
 - `Settings`
   - edit the common settings in a compact basic view
-  - reveal model fallbacks, timing values, and prompt tuning through `Show advanced settings`
+  - reveal model fallbacks, timing values, memory limits, and prompt tuning through `Show advanced settings`
 
 The goal is to feel like a small desktop utility, not a chat dashboard.
 
@@ -163,6 +176,9 @@ For manual editing, the main settings are:
 - `ASSISTANT_TTS_SPEED`
 - `ASSISTANT_SYSTEM_PROMPT`
 - `ASSISTANT_TTS_INSTRUCTIONS`
+- `ASSISTANT_MEMORY_ENABLED`
+- `ASSISTANT_MEMORY_TURN_LIMIT`
+- `ASSISTANT_MEMORY_FACT_LIMIT`
 - `ASSISTANT_LISTEN_TIMEOUT`
 - `ASSISTANT_PHRASE_TIME_LIMIT`
 - `ASSISTANT_AMBIENT_ADJUST_SECONDS`
@@ -175,6 +191,7 @@ Notes:
 - If you use a custom wake word such as `computer`, point `ASSISTANT_PORCUPINE_KEYWORD_PATH` to a Picovoice `.ppn` file.
 - If your OpenAI project cannot access the default transcription or speech models, the app will try configured fallback models.
 - If speech is disabled or all speech models fail, replies stay visible in the UI log.
+- Memory is stored locally in the user config area and reused as context for later prompts when memory is enabled.
 
 ## Bundle for Distribution
 
@@ -226,11 +243,13 @@ Check:
 src/pyjippety/
   bot.py            CLI entrypoint
   config.py         config parsing and env loading
+  memory.py         local memory storage and memory-aware prompting
   runtime.py        assistant orchestration
   integrations.py   OpenAI, Porcupine, audio, and wake chime adapters
   gui.py            desktop frontend
 tests/
-  test_bot.py   core behavior tests
+  test_bot.py       assistant loop tests
+  test_memory.py    memory behavior tests
 install-pyjippety.sh
 build-pyjippety-bundle.sh
 ```

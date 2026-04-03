@@ -10,6 +10,7 @@ import wave
 from typing import Any, Mapping
 
 from .config import AssistantConfig, unique_nonempty
+from .memory import MemoryAwareResponder, build_memory_store
 from .runtime import DesktopAssistant, Speaker
 
 
@@ -339,11 +340,12 @@ def build_live_assistant(
         raise RuntimeError("PICOVOICE_ACCESS_KEY is not set.")
 
     client = build_openai_client(environment)
+    memory_store = build_memory_store(config, environment)
     return DesktopAssistant(
         config=config,
         detector=PorcupineWakeWordDetector(picovoice_access_key, config),
         listener=OpenAITranscribingListener(client, config),
-        responder=OpenAIResponder(client, config),
+        responder=MemoryAwareResponder(OpenAIResponder(client, config), memory_store),
         speaker=build_speaker(client, config),
         cue_player=WakeChimePlayer(),
     )
@@ -352,6 +354,7 @@ def build_live_assistant(
 __all__ = [
     "ConsoleSpeaker",
     "LocalAudioPlayer",
+    "MemoryAwareResponder",
     "OpenAIResponder",
     "OpenAISpeaker",
     "OpenAITranscribingListener",

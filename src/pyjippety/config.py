@@ -57,6 +57,9 @@ class AssistantConfig:
     tts_speed: float = 1.0
     tts_instructions: str | None = None
     tts_enabled: bool = True
+    memory_enabled: bool = True
+    memory_turn_limit: int = 6
+    memory_fact_limit: int = 24
     energy_threshold: int = 300
     ambient_adjust_seconds: float = 1.0
     audio_device_index: int | None = None
@@ -109,6 +112,13 @@ class AssistantConfig:
             tts_speed=float(values.get("ASSISTANT_TTS_SPEED", str(cls.tts_speed))),
             tts_instructions=values.get("ASSISTANT_TTS_INSTRUCTIONS", "").strip() or None,
             tts_enabled=parse_bool(values.get("ASSISTANT_TTS_ENABLED"), True),
+            memory_enabled=parse_bool(values.get("ASSISTANT_MEMORY_ENABLED"), True),
+            memory_turn_limit=int(
+                values.get("ASSISTANT_MEMORY_TURN_LIMIT", str(cls.memory_turn_limit))
+            ),
+            memory_fact_limit=int(
+                values.get("ASSISTANT_MEMORY_FACT_LIMIT", str(cls.memory_fact_limit))
+            ),
             energy_threshold=int(
                 values.get("ASSISTANT_ENERGY_THRESHOLD", str(cls.energy_threshold))
             ),
@@ -141,6 +151,9 @@ class AssistantConfig:
             "ASSISTANT_TTS_VOICE": self.tts_voice,
             "ASSISTANT_TTS_SPEED": str(self.tts_speed),
             "ASSISTANT_TTS_INSTRUCTIONS": self.tts_instructions or "",
+            "ASSISTANT_MEMORY_ENABLED": "true" if self.memory_enabled else "false",
+            "ASSISTANT_MEMORY_TURN_LIMIT": str(self.memory_turn_limit),
+            "ASSISTANT_MEMORY_FACT_LIMIT": str(self.memory_fact_limit),
             "ASSISTANT_ENERGY_THRESHOLD": str(self.energy_threshold),
             "ASSISTANT_AMBIENT_ADJUST_SECONDS": str(self.ambient_adjust_seconds),
             "ASSISTANT_AUDIO_DEVICE_INDEX": (
@@ -157,6 +170,7 @@ class AssistantConfig:
             f"Chat model: {self.chat_model}",
             f"Transcribe model: {self.transcription_model}",
             f"TTS model: {self.tts_model}",
+            f"Memory enabled: {'yes' if self.memory_enabled else 'no'}",
             f"TTS enabled: {'yes' if self.tts_enabled else 'no'}",
         )
 

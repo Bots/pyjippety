@@ -15,6 +15,7 @@ from .integrations import (
     build_openai_client,
     build_speaker,
 )
+from .memory import MemoryAwareResponder, build_memory_store, memory_file_path
 
 
 SURFACE = "#f3f0e8"
@@ -76,6 +77,7 @@ SETTINGS_SECTIONS = (
             SettingField("ASSISTANT_CHAT_MODEL", "Chat model"),
             SettingField("ASSISTANT_TRANSCRIPTION_MODEL", "Primary transcription model"),
             SettingField("ASSISTANT_TRANSCRIPTION_FALLBACK_MODELS", "Transcription fallbacks", "Comma-separated list, for example `gpt-4o-transcribe,whisper-1`.", advanced=True),
+            SettingField("ASSISTANT_MEMORY_ENABLED", "Enable memory", "Store notes and recent exchanges for future context.", kind="bool"),
             SettingField("ASSISTANT_TTS_ENABLED", "Enable speech output", "Turn this off to keep replies in the log only.", kind="bool"),
             SettingField("ASSISTANT_TTS_MODEL", "Primary speech model"),
             SettingField("ASSISTANT_TTS_FALLBACK_MODELS", "Speech fallbacks", "Comma-separated list, for example `tts-1,tts-1-hd`.", advanced=True),
@@ -91,6 +93,8 @@ SETTINGS_SECTIONS = (
             SettingField("ASSISTANT_PHRASE_TIME_LIMIT", "Phrase time limit", advanced=True),
             SettingField("ASSISTANT_AMBIENT_ADJUST_SECONDS", "Ambient calibration seconds", advanced=True),
             SettingField("ASSISTANT_ENERGY_THRESHOLD", "Energy threshold", advanced=True),
+            SettingField("ASSISTANT_MEMORY_TURN_LIMIT", "Stored exchange limit", advanced=True),
+            SettingField("ASSISTANT_MEMORY_FACT_LIMIT", "Stored note limit", advanced=True),
         ),
     ),
     SettingSection(
@@ -325,6 +329,32 @@ class PyjippetyApp:
             justify="left",
             wraplength=250,
         ).pack(anchor="w", pady=(10, 0))
+
+        memory_card = self._card(parent)
+        memory_card.pack(fill="x", pady=(16, 0))
+        tk.Label(
+            memory_card,
+            text="Memory",
+            bg=CARD,
+            fg=TEXT,
+            font=("TkDefaultFont", 12, "bold"),
+        ).pack(anchor="w")
+        self.memory_summary = tk.Label(
+            memory_card,
+            text="",
+            justify="left",
+            anchor="nw",
+            bg=CARD,
+            fg=MUTED,
+            wraplength=250,
+        )
+        self.memory_summary.pack(fill="x", pady=(8, 10))
+        ttk.Button(
+            memory_card,
+            text="Clear memory",
+            command=self.clear_memory,
+            style="Secondary.TButton",
+        ).pack(fill="x")
 
     def _build_content(self, parent: ttk.Frame) -> None:
         notebook = ttk.Notebook(parent, style="Notebook.TNotebook")
@@ -629,6 +659,20 @@ class PyjippetyApp:
             f"Picovoice key: {'set' if environment.get('PICOVOICE_ACCESS_KEY') else 'missing'}"
         )
         self.config_summary.configure(text="\n".join(summary_lines))
+        self._refresh_memory_summary(environment)
+
+    def _refresh_memory_summary(self, environment: dict[str, str]) -> None:
+        store = build_memory_store(self.config, environment)
+        if store is None:
+            self.memory_summary.configure(text="Memory is off.")
+            return
+        self.memory_summary.configure(
+            text=(
+                f"File: {memory_file_path(environment)}\n"
+                f"Notes: {len(store.state.facts)}\n"
+                f"Recent exchanges: {len(store.state.turns)}"
+            )
+        )
 
     def _set_status(self, text: str) -> None:
         colors = {
@@ -655,6 +699,17 @@ class PyjippetyApp:
         self.log_view.configure(state="normal")
         self.log_view.delete("1.0", "end")
         self.log_view.configure(state="disabled")
+
+    def clear_memory(self) -> None:
+        environment = self._build_environment()
+        self._refresh_active_config(environment)
+        store = build_memory_store(self.config, environment)
+        if store is None:
+            self._append_log("Memory is disabled.")
+            return
+        store.clear()
+        self._refresh_memory_summary(environment)
+        self._append_log("Memory cleared.")
 
     def _poll_logs(self) -> None:
         try:
@@ -778,7 +833,10 @@ class PyjippetyApp:
         try:
             config = AssistantConfig.from_mapping(environment)
             client = build_openai_client(environment)
-            reply = OpenAIResponder(client, config).reply(prompt)
+            memory_store = build_memory_store(config, environment)
+            reply = MemoryAwareResponder(
+                OpenAIResponder(client, config), memory_store
+            ).reply(prompt)
             self.log_queue.put(f"pyjippety: {reply}")
             try:
                 build_speaker(client, config).say(reply)
