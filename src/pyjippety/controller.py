@@ -27,7 +27,7 @@ class AppController:
 
     def build_environment(self) -> dict[str, str]:
         environment = dict(os.environ)
-        environment.update(self.app.collect_form_values())
+        environment.update(self.app._collect_form_values())
         environment["PYJIPPETY_PROFILE"] = self.app.profile_var.get().strip() or "default"
         return environment
 
