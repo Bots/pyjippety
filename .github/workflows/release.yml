@@ -35,7 +35,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y portaudio19-dev python3-tk
+          sudo apt-get install -y portaudio19-dev python3-tk flatpak flatpak-builder
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O "$RUNNER_TEMP/appimagetool.AppImage"
+          chmod +x "$RUNNER_TEMP/appimagetool.AppImage"
 
       - name: Install macOS system packages
         if: runner.os == 'macOS'
@@ -49,18 +51,10 @@ jobs:
       - name: Build application bundle
         run: python build-pyjippety-bundle.py
 
-      - name: Package Linux/macOS bundle
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p release
-          tar -czf "release/pyjippety-${{ runner.os }}-${{ runner.arch }}.tar.gz" -C dist pyjippety
-
-      - name: Package Windows bundle
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path release | Out-Null
-          Compress-Archive -Path dist/pyjippety -DestinationPath "release/pyjippety-${{ runner.os }}-${{ runner.arch }}.zip" -Force
+      - name: Package release artifacts
+        env:
+          APPIMAGETOOL: ${{ runner.os == 'Linux' && format('{0}/appimagetool.AppImage', runner.temp) || '' }}
+        run: python package-pyjippety.py
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4

@@ -240,9 +240,9 @@ Notes:
 - Profiles store their own settings, memory file, and action history under `~/.config/pyjippety/profiles/<profile-name>/`.
 - Idle timeout stops voice mode after inactivity and puts the app into a sleeping state until you start it again.
 
-## Bundle for Distribution
+## Bundle and Package Artifacts
 
-To build a redistributable desktop bundle:
+To build a desktop bundle:
 
 Linux or macOS:
 
@@ -256,10 +256,31 @@ Windows:
 py build-pyjippety-bundle.py
 ```
 
-This uses PyInstaller in one-folder mode and writes the output to:
+To build release artifacts for the current platform:
+
+Linux or macOS:
+
+```bash
+python3 package-pyjippety.py
+```
+
+Windows:
+
+```powershell
+py package-pyjippety.py
+```
+
+Current packaging targets:
+
+- Windows: `.exe` and `.zip`
+- macOS: `.dmg` and `.tar.gz`
+- Linux: `.deb`, `.tar.gz`, and `.AppImage`
+- Linux experimental: `.flatpak` when Flatpak tooling is available
+
+Artifacts are written to:
 
 ```text
-dist/pyjippety
+release/
 ```
 
 ## GitHub Automation
@@ -273,6 +294,7 @@ The repository includes GitHub Actions workflows for CI and releases:
 - `Release`
   - triggers on tags that start with `v`
   - builds desktop bundles for Linux, macOS, and Windows
+  - packages release artifacts for each platform
   - builds Python `sdist` and `wheel` artifacts
   - publishes all bundled artifacts to a GitHub Release
 

@@ -1,0 +1,25 @@
+app-id: com.bots.PyJippety
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+command: pyjippety-ui
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --share=network
+  - --filesystem=home
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/pkgconfig
+  - "*.a"
+modules:
+  - name: pyjippety
+    buildsystem: simple
+    build-commands:
+      - python3 -m pip install --prefix=/app --no-cache-dir .
+    sources:
+      - type: dir
+        path: ../..
