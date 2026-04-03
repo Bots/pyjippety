@@ -8,14 +8,12 @@ import tkinter as tk
 from dataclasses import dataclass
 from tkinter import ttk
 
-from .bot import (
-    AssistantConfig,
+from .config import AssistantConfig, env_file_path, load_environment
+from .integrations import (
     OpenAIResponder,
     build_live_assistant,
     build_openai_client,
     build_speaker,
-    env_file_path,
-    load_environment,
 )
 
 
@@ -41,6 +39,7 @@ class SettingField:
     kind: str = "entry"
     secret: bool = False
     height: int = 3
+    advanced: bool = False
 
 
 @dataclass(frozen=True)
@@ -65,9 +64,9 @@ SETTINGS_SECTIONS = (
         (
             SettingField("ASSISTANT_WAKE_WORD", "Wake word label", "Shown in the UI and spoken back to you."),
             SettingField("ASSISTANT_PORCUPINE_KEYWORD", "Built-in keyword", "Ignored if a custom `.ppn` path is set."),
-            SettingField("ASSISTANT_PORCUPINE_KEYWORD_PATH", "Custom keyword file", "Absolute or relative path to a Picovoice `.ppn` file."),
-            SettingField("ASSISTANT_AUDIO_DEVICE_INDEX", "Audio device index", "Leave blank to use the default input/output device."),
-            SettingField("ASSISTANT_EXIT_WORDS", "Exit words", "Comma-separated phrases that stop voice mode."),
+            SettingField("ASSISTANT_PORCUPINE_KEYWORD_PATH", "Custom keyword file", "Absolute or relative path to a Picovoice `.ppn` file.", advanced=True),
+            SettingField("ASSISTANT_AUDIO_DEVICE_INDEX", "Audio device index", "Leave blank to use the default input/output device.", advanced=True),
+            SettingField("ASSISTANT_EXIT_WORDS", "Exit words", "Comma-separated phrases that stop voice mode.", advanced=True),
         ),
     ),
     SettingSection(
@@ -76,30 +75,30 @@ SETTINGS_SECTIONS = (
         (
             SettingField("ASSISTANT_CHAT_MODEL", "Chat model"),
             SettingField("ASSISTANT_TRANSCRIPTION_MODEL", "Primary transcription model"),
-            SettingField("ASSISTANT_TRANSCRIPTION_FALLBACK_MODELS", "Transcription fallbacks", "Comma-separated list, for example `gpt-4o-transcribe,whisper-1`."),
+            SettingField("ASSISTANT_TRANSCRIPTION_FALLBACK_MODELS", "Transcription fallbacks", "Comma-separated list, for example `gpt-4o-transcribe,whisper-1`.", advanced=True),
             SettingField("ASSISTANT_TTS_ENABLED", "Enable speech output", "Turn this off to keep replies in the log only.", kind="bool"),
             SettingField("ASSISTANT_TTS_MODEL", "Primary speech model"),
-            SettingField("ASSISTANT_TTS_FALLBACK_MODELS", "Speech fallbacks", "Comma-separated list, for example `tts-1,tts-1-hd`."),
-            SettingField("ASSISTANT_TTS_VOICE", "Speech voice"),
-            SettingField("ASSISTANT_TTS_SPEED", "Speech speed"),
+            SettingField("ASSISTANT_TTS_FALLBACK_MODELS", "Speech fallbacks", "Comma-separated list, for example `tts-1,tts-1-hd`.", advanced=True),
+            SettingField("ASSISTANT_TTS_VOICE", "Speech voice", advanced=True),
+            SettingField("ASSISTANT_TTS_SPEED", "Speech speed", advanced=True),
         ),
     ),
     SettingSection(
         "Listening",
         "These values control how long the microphone waits and how aggressively it filters room noise.",
         (
-            SettingField("ASSISTANT_LISTEN_TIMEOUT", "Listen timeout"),
-            SettingField("ASSISTANT_PHRASE_TIME_LIMIT", "Phrase time limit"),
-            SettingField("ASSISTANT_AMBIENT_ADJUST_SECONDS", "Ambient calibration seconds"),
-            SettingField("ASSISTANT_ENERGY_THRESHOLD", "Energy threshold"),
+            SettingField("ASSISTANT_LISTEN_TIMEOUT", "Listen timeout", advanced=True),
+            SettingField("ASSISTANT_PHRASE_TIME_LIMIT", "Phrase time limit", advanced=True),
+            SettingField("ASSISTANT_AMBIENT_ADJUST_SECONDS", "Ambient calibration seconds", advanced=True),
+            SettingField("ASSISTANT_ENERGY_THRESHOLD", "Energy threshold", advanced=True),
         ),
     ),
     SettingSection(
         "Prompting",
         "These fields shape how the assistant answers and how speech output sounds.",
         (
-            SettingField("ASSISTANT_SYSTEM_PROMPT", "System prompt", kind="text", height=5),
-            SettingField("ASSISTANT_TTS_INSTRUCTIONS", "Speech style instructions", kind="text", height=4),
+            SettingField("ASSISTANT_SYSTEM_PROMPT", "System prompt", kind="text", height=5, advanced=True),
+            SettingField("ASSISTANT_TTS_INSTRUCTIONS", "Speech style instructions", kind="text", height=4, advanced=True),
         ),
     ),
 )
@@ -129,6 +128,8 @@ class PyjippetyApp:
         self.entry_widgets: dict[str, ttk.Entry] = {}
         self.text_widgets: dict[str, tk.Text] = {}
         self.bool_vars: dict[str, tk.BooleanVar] = {}
+        self.setting_rows: list[tuple[SettingField, tuple[tk.Widget, tk.Widget]]] = []
+        self.section_cards: list[tuple[SettingSection, tk.Widget]] = []
         self.env_path = env_file_path()
 
         load_environment()
@@ -455,6 +456,14 @@ class PyjippetyApp:
         button_row.grid(row=0, column=1, rowspan=2, sticky="e")
         ttk.Button(button_row, text="Save", command=self.save_settings, style="Primary.TButton").pack(side="left")
         ttk.Button(button_row, text="Reload", command=self.reload_settings, style="Secondary.TButton").pack(side="left", padx=(10, 0))
+        self.show_advanced_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            toolbar,
+            text="Show advanced settings",
+            variable=self.show_advanced_var,
+            command=self._refresh_advanced_visibility,
+            style="App.TCheckbutton",
+        ).grid(row=2, column=0, sticky="w", pady=(10, 0))
 
         canvas = tk.Canvas(parent, bg=SURFACE, highlightthickness=0)
         scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
@@ -475,10 +484,12 @@ class PyjippetyApp:
 
         for section in SETTINGS_SECTIONS:
             self._build_settings_section(form, section)
+        self._refresh_advanced_visibility()
 
     def _build_settings_section(self, parent: ttk.Frame, section: SettingSection) -> None:
         card = self._card(parent, padding=(18, 18))
         card.pack(fill="x", padx=4, pady=(0, 16))
+        self.section_cards.append((section, card))
         card.grid_columnconfigure(1, weight=1)
 
         tk.Label(
@@ -499,10 +510,13 @@ class PyjippetyApp:
 
         row_index = 2
         for field in section.fields:
-            self._build_setting_row(card, row_index, field)
+            row_widget = self._build_setting_row(card, row_index, field)
+            self.setting_rows.append((field, row_widget))
             row_index += 1
 
-    def _build_setting_row(self, parent: tk.Frame, row: int, field: SettingField) -> None:
+    def _build_setting_row(
+        self, parent: tk.Frame, row: int, field: SettingField
+    ) -> tuple[tk.Widget, tk.Widget]:
         label_frame = tk.Frame(parent, bg=CARD)
         label_frame.grid(row=row, column=0, sticky="nw", padx=(0, 18), pady=8)
         tk.Label(
@@ -525,12 +539,13 @@ class PyjippetyApp:
         if field.kind == "bool":
             variable = tk.BooleanVar(value=False)
             self.bool_vars[field.key] = variable
-            ttk.Checkbutton(
+            control = ttk.Checkbutton(
                 parent,
                 variable=variable,
                 style="App.TCheckbutton",
-            ).grid(row=row, column=1, sticky="w", pady=8)
-            return
+            )
+            control.grid(row=row, column=1, sticky="w", pady=8)
+            return (label_frame, control)
 
         if field.kind == "text":
             widget = tk.Text(
@@ -548,7 +563,7 @@ class PyjippetyApp:
             )
             widget.grid(row=row, column=1, sticky="ew", pady=8)
             self.text_widgets[field.key] = widget
-            return
+            return (label_frame, widget)
 
         widget = ttk.Entry(
             parent,
@@ -557,6 +572,24 @@ class PyjippetyApp:
         )
         widget.grid(row=row, column=1, sticky="ew", pady=8, ipady=2)
         self.entry_widgets[field.key] = widget
+        return (label_frame, widget)
+
+    def _refresh_advanced_visibility(self) -> None:
+        show_advanced = self.show_advanced_var.get()
+        for field, widgets in self.setting_rows:
+            if not field.advanced:
+                continue
+            for widget in widgets:
+                if show_advanced:
+                    widget.grid()
+                else:
+                    widget.grid_remove()
+        for section, card in self.section_cards:
+            has_basic_fields = any(not field.advanced for field in section.fields)
+            if show_advanced or has_basic_fields:
+                card.pack(fill="x", padx=4, pady=(0, 16))
+            else:
+                card.pack_forget()
 
     def _all_setting_keys(self) -> list[str]:
         return [field.key for section in SETTINGS_SECTIONS for field in section.fields]
@@ -678,6 +711,7 @@ class PyjippetyApp:
                 values[key] = os.environ[key]
         self._populate_form(values)
         self._refresh_active_config(self._build_environment())
+        self._refresh_advanced_visibility()
         self._append_log(f"Loaded settings from {self.env_path}.")
 
     def start_voice_mode(self) -> None:

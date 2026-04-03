@@ -16,6 +16,7 @@ The project is built to work in two modes:
 - OpenAI transcription with fallback model support
 - OpenAI chat responses
 - OpenAI speech output with fallback model support
+- a local wake chime when the wake word is detected
 - desktop control panel for settings, logs, and typed testing
 
 ## Desktop Install
@@ -61,6 +62,8 @@ Then:
 4. Speak your prompt.
 
 If you want to test the assistant without using the wake word, use the typed request box in the `Workspace` tab.
+
+The app keeps spoken output focused on actual replies. Wake-word detection uses a short local chime instead of speaking status messages back to you.
 
 ## Developer Setup
 
@@ -130,10 +133,8 @@ The desktop app is split into two focused areas:
   - type requests directly
   - inspect live activity logs
 - `Settings`
-  - manage credentials
-  - tune wake-word behavior
-  - choose models and fallback models
-  - adjust listening and speech options
+  - edit the common settings in a compact basic view
+  - reveal model fallbacks, timing values, and prompt tuning through `Show advanced settings`
 
 The goal is to feel like a small desktop utility, not a chat dashboard.
 
@@ -223,8 +224,11 @@ Check:
 
 ```text
 src/pyjippety/
-  bot.py        core assistant runtime
-  gui.py        desktop frontend
+  bot.py            CLI entrypoint
+  config.py         config parsing and env loading
+  runtime.py        assistant orchestration
+  integrations.py   OpenAI, Porcupine, audio, and wake chime adapters
+  gui.py            desktop frontend
 tests/
   test_bot.py   core behavior tests
 install-pyjippety.sh

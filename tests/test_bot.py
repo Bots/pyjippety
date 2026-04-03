@@ -62,6 +62,14 @@ class FakeSpeaker:
         self.messages.append(text)
 
 
+class FakeCuePlayer:
+    def __init__(self):
+        self.wake_cues = 0
+
+    def play_wake_cue(self):
+        self.wake_cues += 1
+
+
 class HelperTests(unittest.TestCase):
     def test_is_exit_command_normalizes_whitespace(self):
         self.assertTrue(
@@ -109,8 +117,9 @@ class DesktopAssistantTests(unittest.TestCase):
         listener = FakeListener([])
         responder = FakeResponder()
         speaker = FakeSpeaker()
+        cue_player = FakeCuePlayer()
         assistant = DesktopAssistant(
-            AssistantConfig(), detector, listener, responder, speaker
+            AssistantConfig(), detector, listener, responder, speaker, cue_player
         )
 
         keep_running = assistant.handle_prompt("open my calendar")
@@ -124,8 +133,9 @@ class DesktopAssistantTests(unittest.TestCase):
         listener = FakeListener([])
         responder = FakeResponder()
         speaker = FakeSpeaker()
+        cue_player = FakeCuePlayer()
         assistant = DesktopAssistant(
-            AssistantConfig(), detector, listener, responder, speaker
+            AssistantConfig(), detector, listener, responder, speaker, cue_player
         )
 
         keep_running = assistant.handle_prompt("stop listening")
@@ -133,15 +143,16 @@ class DesktopAssistantTests(unittest.TestCase):
         self.assertFalse(keep_running)
         self.assertEqual(detector.stop_requested, 1)
         self.assertEqual(responder.prompts, [])
-        self.assertEqual(speaker.messages, ["Stopping."])
+        self.assertEqual(speaker.messages, [])
 
     def test_run_waits_for_wake_word_then_processes_prompt(self):
         detector = FakeDetector()
         listener = FakeListener(["say hello"])
         responder = FakeResponder()
         speaker = FakeSpeaker()
+        cue_player = FakeCuePlayer()
         assistant = DesktopAssistant(
-            AssistantConfig(), detector, listener, responder, speaker
+            AssistantConfig(), detector, listener, responder, speaker, cue_player
         )
 
         assistant.run(once=True)
@@ -150,20 +161,19 @@ class DesktopAssistantTests(unittest.TestCase):
         self.assertEqual(detector.calls, 1)
         self.assertEqual(detector.paused, 1)
         self.assertEqual(detector.resumed, 1)
+        self.assertEqual(cue_player.wake_cues, 1)
         self.assertTrue(detector.closed)
         self.assertEqual(responder.prompts, ["say hello"])
-        self.assertEqual(
-            speaker.messages,
-            ["Listening for porcupine.", "Yes?", "echo:say hello"],
-        )
+        self.assertEqual(speaker.messages, ["echo:say hello"])
 
     def test_run_handles_missing_prompt_after_wake_word(self):
         detector = FakeDetector()
         listener = FakeListener([None])
         responder = FakeResponder()
         speaker = FakeSpeaker()
+        cue_player = FakeCuePlayer()
         assistant = DesktopAssistant(
-            AssistantConfig(), detector, listener, responder, speaker
+            AssistantConfig(), detector, listener, responder, speaker, cue_player
         )
 
         assistant.run(once=True)
@@ -171,10 +181,8 @@ class DesktopAssistantTests(unittest.TestCase):
         self.assertEqual(responder.prompts, [])
         self.assertEqual(detector.paused, 1)
         self.assertEqual(detector.resumed, 1)
-        self.assertEqual(
-            speaker.messages,
-            ["Listening for porcupine.", "Yes?", "I did not catch that."],
-        )
+        self.assertEqual(cue_player.wake_cues, 1)
+        self.assertEqual(speaker.messages, [])
 
 
 if __name__ == "__main__":
