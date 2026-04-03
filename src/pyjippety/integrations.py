@@ -340,17 +340,17 @@ class WakeChimePlayer:
 
 def generate_wake_chime() -> bytes:
     sample_rate = 24000
-    amplitude = 0.24
-    frequencies = (880.0, 1320.0)
-    segment_duration = 0.085
-    gap_duration = 0.018
+    amplitude = 0.2
+    frequencies = (720.0, 540.0)
+    segment_duration = 0.11
+    gap_duration = 0.012
     frames = bytearray()
 
     def append_tone(frequency: float, duration: float) -> None:
         total_samples = int(sample_rate * duration)
         for index in range(total_samples):
             progress = index / max(total_samples - 1, 1)
-            envelope = min(progress * 6, 1.0) * min((1.0 - progress) * 7, 1.0)
+            envelope = min(progress * 4.5, 1.0) * min((1.0 - progress) * 4.0, 1.0)
             sample = amplitude * envelope * math.sin(
                 2 * math.pi * frequency * (index / sample_rate)
             )
