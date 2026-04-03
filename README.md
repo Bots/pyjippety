@@ -25,37 +25,55 @@ The project is built to work in two modes:
 - local action plugins for simple desktop tasks
 - desktop control panel for settings, profiles, logs, transcripts, typed testing, memory review, and history
 
-## Desktop Install
+## Install
 
-For a normal Linux desktop install, run:
+PyJippety now ships with a cross-platform Python installer.
+
+Linux or macOS:
 
 ```bash
-bash ./install-pyjippety.sh
+python3 install-pyjippety.py
+```
+
+Windows:
+
+```powershell
+py install-pyjippety.py
 ```
 
 The installer will:
 
-- create an isolated app environment under `~/.local/share/pyjippety`
-- create a persistent config file at `~/.config/pyjippety/.env`
-- install a launcher at `~/.local/bin/pyjippety-ui`
-- add a desktop entry so the app can appear in the applications menu
+- create an isolated app environment in your user data directory
+- create a persistent config file in your user config directory
+- install a launcher script for your platform
+- copy the app logo into the installed app directory
+- add a Linux desktop entry when running on Linux
 
-After install, open `PyJippety` from your applications menu or run:
+Typical install locations:
 
-```bash
-~/.local/bin/pyjippety-ui
-```
+- Linux app data: `~/.local/share/pyjippety`
+- Linux config: `~/.config/pyjippety/.env`
+- macOS app data/config: `~/Library/Application Support/PyJippety`
+- Windows app data: `%LOCALAPPDATA%\PyJippety`
+- Windows config: `%APPDATA%\PyJippety\.env`
 
-On Debian or Ubuntu, make sure the required system packages are installed first:
+System requirements by platform:
+
+- Linux: `python3-tk` and PortAudio development/runtime packages are commonly required
+- macOS: use a Python build with Tk included; Homebrew PortAudio is commonly needed for PyAudio
+- Windows: use a standard Python.org install with Tk included; a working build of PyAudio is still required
+
+Linux example:
 
 ```bash
 sudo apt update
 sudo apt install portaudio19-dev python3-tk
+python3 install-pyjippety.py
 ```
 
 ## First Run
 
-Open the app, go to the `Settings` tab, and fill in:
+Open the app, go to the `Setup` tab, and fill in:
 
 - `OpenAI API key`
 - `Picovoice access key`
@@ -68,7 +86,7 @@ Then:
 4. Speak your prompt.
 5. If you want clarification, ask a quick follow-up right after the reply. You do not need the wake word again until the follow-up window closes.
 
-If you want to test the assistant without using the wake word, use the typed request box in the `Workspace` tab.
+If you want to test the assistant without using the wake word, use the typed request box in the `Use` tab.
 
 Useful desktop shortcuts:
 
@@ -223,8 +241,16 @@ Notes:
 
 To build a redistributable desktop bundle:
 
+Linux or macOS:
+
 ```bash
-bash ./build-pyjippety-bundle.sh
+python3 build-pyjippety-bundle.py
+```
+
+Windows:
+
+```powershell
+py build-pyjippety-bundle.py
 ```
 
 This uses PyInstaller in one-folder mode and writes the output to:
@@ -263,6 +289,16 @@ Check:
 - the custom `.ppn` path if you are using one
 - your microphone device selection
 
+### macOS notes
+
+- Tkinter support depends on the Python distribution you installed.
+- If PyAudio fails to build, install PortAudio first, for example with Homebrew.
+
+### Windows notes
+
+- Use `py install-pyjippety.py` if `python` is not on `PATH`.
+- If PyAudio installation fails, install a compatible wheel for your Python version or use a Python environment known to work with PyAudio.
+
 ## Project Layout
 
 ```text
@@ -274,10 +310,16 @@ src/pyjippety/
   runtime.py        assistant orchestration
   integrations.py   OpenAI, Porcupine, audio, and wake chime adapters
   gui.py            desktop frontend
+  controller.py     GUI control flow and side-effect orchestration
+  profile_store.py  settings/history persistence by profile
+  ui_shared.py      shared UI schema and constants
+  views.py          Tk layout and widget construction
 tests/
   test_bot.py       assistant loop tests
   test_memory.py    memory behavior tests
+install-pyjippety.py
 install-pyjippety.sh
+build-pyjippety-bundle.py
 build-pyjippety-bundle.sh
 ```
 
