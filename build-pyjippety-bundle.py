@@ -12,12 +12,13 @@ VENV_DIR = PROJECT_DIR / ".venv"
 
 def main() -> None:
     scripts_dir = VENV_DIR / ("Scripts" if platform.system() == "Windows" else "bin")
-    python = scripts_dir / ("python.exe" if platform.system() == "Windows" else "python")
-    if not python.exists():
-        raise SystemExit(f"Expected a virtual environment at {VENV_DIR}. Create it first, then rerun.")
+    venv_python = scripts_dir / ("python.exe" if platform.system() == "Windows" else "python")
+    python = venv_python if venv_python.exists() else Path(sys.executable)
 
     subprocess.run([str(python), "-m", "pip", "install", "--upgrade", "pyinstaller"], check=True)
     pyinstaller = scripts_dir / ("pyinstaller.exe" if platform.system() == "Windows" else "pyinstaller")
+    if not pyinstaller.exists():
+        pyinstaller = Path(str(python)).parent / ("pyinstaller.exe" if platform.system() == "Windows" else "pyinstaller")
     separator = ";" if platform.system() == "Windows" else ":"
     subprocess.run(
         [

@@ -262,6 +262,29 @@ This uses PyInstaller in one-folder mode and writes the output to:
 dist/pyjippety
 ```
 
+## GitHub Automation
+
+The repository includes GitHub Actions workflows for CI and releases:
+
+- `CI`
+  - runs unit tests on Linux, macOS, and Windows
+  - installs the platform-specific system dependencies needed for the current Python/audio stack
+  - compiles the Python sources to catch syntax regressions
+- `Release`
+  - triggers on tags that start with `v`
+  - builds desktop bundles for Linux, macOS, and Windows
+  - builds Python `sdist` and `wheel` artifacts
+  - publishes all bundled artifacts to a GitHub Release
+
+Typical release flow:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+That tag will trigger the release workflow and publish the generated artifacts to GitHub Releases.
+
 ## Testing
 
 ```bash
