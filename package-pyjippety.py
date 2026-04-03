@@ -246,7 +246,16 @@ def _package_flatpak() -> None:
     for path in (build_root, repo_dir):
         if path.exists():
             shutil.rmtree(path)
-    _run(["flatpak", "remote-add", "--if-not-exists", "flathub", "https://flathub.org/repo/flathub.flatpakrepo"])
+    _run(
+        [
+            "flatpak",
+            "--user",
+            "remote-add",
+            "--if-not-exists",
+            "flathub",
+            "https://flathub.org/repo/flathub.flatpakrepo",
+        ]
+    )
     _run(["flatpak-builder", "--force-clean", "--repo", str(repo_dir), str(build_root), str(manifest)])
     _run(["flatpak", "build-bundle", str(repo_dir), str(bundle_path), "com.bots.PyJippety"])
 
