@@ -55,12 +55,15 @@ def _ensure_release_dir() -> None:
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _python_executable() -> Path:
+    scripts_dir = PROJECT_DIR / ".venv" / ("Scripts" if platform.system() == "Windows" else "bin")
+    candidate = scripts_dir / ("python.exe" if platform.system() == "Windows" else "python")
+    return candidate if candidate.exists() else Path(sys.executable)
+
+
 def _package_windows() -> None:
     exe_name = f"{APP_NAME}-{_normalize_arch()}.exe"
-    scripts_dir = PROJECT_DIR / ".venv" / "Scripts"
-    python = scripts_dir / "python.exe"
-    if not python.exists():
-        python = Path(sys.executable)
+    python = _python_executable()
     try:
         _run(
             [
@@ -235,17 +238,86 @@ def _package_appimage(bundle: Path) -> None:
 
 
 def _package_flatpak() -> None:
-    manifest = PROJECT_DIR / "packaging" / "flatpak" / "com.bots.PyJippety.yml"
-    if not manifest.exists():
-        return
     if shutil.which("flatpak-builder") is None or shutil.which("flatpak") is None:
         return
     build_root = RELEASE_DIR / "flatpak-build"
     repo_dir = RELEASE_DIR / "flatpak-repo"
     bundle_path = RELEASE_DIR / f"{PACKAGE_NAME}-linux-{_normalize_arch()}.flatpak"
+    source_root = RELEASE_DIR / "flatpak-src"
+    project_source = source_root / "project"
+    wheels_dir = source_root / "wheels"
+    manifest_path = source_root / "com.bots.PyJippety.generated.yml"
     for path in (build_root, repo_dir):
         if path.exists():
             shutil.rmtree(path)
+    if source_root.exists():
+        shutil.rmtree(source_root)
+    source_root.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(
+        PROJECT_DIR,
+        project_source,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            ".venv",
+            "build",
+            "dist",
+            "release",
+            "__pycache__",
+            ".omx",
+            ".serena",
+            "profiles",
+            "*.pyc",
+        ),
+    )
+    wheels_dir.mkdir(parents=True, exist_ok=True)
+    python = _python_executable()
+    _run(
+        [
+            str(python),
+            "-m",
+            "pip",
+            "download",
+            "--dest",
+            str(wheels_dir),
+            "-r",
+            str(PROJECT_DIR / "requirements.txt"),
+            "setuptools>=68",
+            "wheel",
+        ]
+    )
+    manifest_path.write_text(
+        "\n".join(
+            [
+                "app-id: com.bots.PyJippety",
+                "runtime: org.freedesktop.Platform",
+                'runtime-version: "24.08"',
+                "sdk: org.freedesktop.Sdk",
+                "command: pyjippety-ui",
+                "finish-args:",
+                "  - --share=ipc",
+                "  - --socket=fallback-x11",
+                "  - --socket=wayland",
+                "  - --socket=pulseaudio",
+                "  - --share=network",
+                "  - --filesystem=home",
+                "cleanup:",
+                "  - /include",
+                "  - /lib/pkgconfig",
+                "  - /share/pkgconfig",
+                '  - "*.a"',
+                "modules:",
+                "  - name: pyjippety",
+                "    buildsystem: simple",
+                "    build-commands:",
+                "      - python3 -m pip install --prefix=/app --no-cache-dir --no-build-isolation --no-index --find-links=../wheels .",
+                "    sources:",
+                "      - type: dir",
+                f"        path: {project_source}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
     _run(
         [
             "flatpak",
@@ -267,7 +339,7 @@ def _package_flatpak() -> None:
             "org.freedesktop.Sdk//24.08",
         ]
     )
-    _run(["flatpak-builder", "--force-clean", "--repo", str(repo_dir), str(build_root), str(manifest)])
+    _run(["flatpak-builder", "--force-clean", "--repo", str(repo_dir), str(build_root), str(manifest_path)])
     _run(["flatpak", "build-bundle", str(repo_dir), str(bundle_path), "com.bots.PyJippety"])
 
 

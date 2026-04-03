@@ -275,7 +275,7 @@ Current packaging targets:
 - Windows: `.exe` and `.zip`
 - macOS: `.dmg` and `.tar.gz`
 - Linux: `.deb`, `.tar.gz`, and `.AppImage`
-- Linux experimental: `.flatpak` when Flatpak tooling is available
+- Linux: `.flatpak` when Flatpak tooling is available
 
 Artifacts are written to:
 
@@ -297,6 +297,10 @@ The repository includes GitHub Actions workflows for CI and releases:
   - packages release artifacts for each platform
   - builds Python `sdist` and `wheel` artifacts
   - publishes all bundled artifacts to a GitHub Release
+
+Flatpak builds are generated during releases too. The packaging script vendors the required Python wheels and installs the Flatpak runtime/SDK in CI so the Flatpak build can run without depending on network access inside the Flatpak build sandbox.
+
+Flathub publishing is still a separate submission/review workflow through `flathub/flathub`; GitHub Releases can publish `.flatpak` artifacts, but that does not by itself publish the app on Flathub.
 
 Typical release flow:
 
