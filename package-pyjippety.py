@@ -87,7 +87,13 @@ def _package_windows() -> None:
                 str(PROJECT_DIR / "src"),
                 "--add-data",
                 f"{PROJECT_DIR / 'assets'};assets",
-                str(PROJECT_DIR / "src" / "pyjippety" / "gui.py"),
+                "--hidden-import",
+                "pyjippety.gui",
+                "--collect-submodules",
+                "pyjippety",
+                "--collect-data",
+                "pyjippety",
+                str(PROJECT_DIR / "run-pyjippety-gui.py"),
             ]
         )
         onefile = DIST_DIR / f"{APP_NAME}.exe"
