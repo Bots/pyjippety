@@ -249,14 +249,19 @@ class OpenAISpeaker:
         return unique_nonempty([self.config.tts_model, *self.config.tts_fallback_models])
 
     def _speak_with_model(self, model: str, text: str) -> None:
+        request_args = {
+            "model": model,
+            "voice": self.config.tts_voice,
+            "input": text,
+            "response_format": "wav",
+            "speed": self.config.tts_speed,
+        }
+        if self.config.tts_instructions is not None:
+            request_args["instructions"] = self.config.tts_instructions
+
         with tempfile.NamedTemporaryFile(suffix=".wav") as temp_file:
             with self.client.audio.speech.with_streaming_response.create(
-                model=model,
-                voice=self.config.tts_voice,
-                input=text,
-                instructions=self.config.tts_instructions,
-                response_format="wav",
-                speed=self.config.tts_speed,
+                **request_args
             ) as response:
                 response.stream_to_file(temp_file.name)
 
