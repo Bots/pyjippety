@@ -39,6 +39,7 @@ def unique_nonempty(values: list[str]) -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class AssistantConfig:
+    display_name: str = "PyJippety"
     wake_word: str = "porcupine"
     porcupine_keyword: str | None = "porcupine"
     porcupine_keyword_path: str | None = None
@@ -60,6 +61,10 @@ class AssistantConfig:
     tts_speed: float = 1.0
     tts_instructions: str | None = None
     tts_enabled: bool = True
+    mute_speech: bool = False
+    low_verbosity: bool = False
+    start_hidden: bool = False
+    chime_volume: float = 1.0
     safe_tool_mode: bool = True
     idle_timeout_seconds: int = 900
     memory_enabled: bool = True
@@ -83,6 +88,7 @@ class AssistantConfig:
         exit_words = parse_csv(values.get("ASSISTANT_EXIT_WORDS", ""))
         keyword_path = values.get("ASSISTANT_PORCUPINE_KEYWORD_PATH", "").strip() or None
         return cls(
+            display_name=values.get("ASSISTANT_DISPLAY_NAME", cls.display_name),
             wake_word=values.get("ASSISTANT_WAKE_WORD", "porcupine"),
             porcupine_keyword=values.get(
                 "ASSISTANT_PORCUPINE_KEYWORD",
@@ -124,6 +130,10 @@ class AssistantConfig:
             tts_speed=float(values.get("ASSISTANT_TTS_SPEED", str(cls.tts_speed))),
             tts_instructions=values.get("ASSISTANT_TTS_INSTRUCTIONS", "").strip() or None,
             tts_enabled=parse_bool(values.get("ASSISTANT_TTS_ENABLED"), True),
+            mute_speech=parse_bool(values.get("ASSISTANT_MUTE_SPEECH"), False),
+            low_verbosity=parse_bool(values.get("ASSISTANT_LOW_VERBOSITY"), False),
+            start_hidden=parse_bool(values.get("ASSISTANT_START_HIDDEN"), False),
+            chime_volume=float(values.get("ASSISTANT_CHIME_VOLUME", str(cls.chime_volume))),
             safe_tool_mode=parse_bool(values.get("ASSISTANT_SAFE_TOOL_MODE"), True),
             idle_timeout_seconds=int(
                 values.get("ASSISTANT_IDLE_TIMEOUT_SECONDS", str(cls.idle_timeout_seconds))
@@ -150,6 +160,7 @@ class AssistantConfig:
 
     def to_env_mapping(self) -> dict[str, str]:
         return {
+            "ASSISTANT_DISPLAY_NAME": self.display_name,
             "ASSISTANT_WAKE_WORD": self.wake_word,
             "ASSISTANT_PORCUPINE_KEYWORD": self.porcupine_keyword or "",
             "ASSISTANT_PORCUPINE_KEYWORD_PATH": self.porcupine_keyword_path or "",
@@ -170,6 +181,10 @@ class AssistantConfig:
             "ASSISTANT_TTS_VOICE": self.tts_voice,
             "ASSISTANT_TTS_SPEED": str(self.tts_speed),
             "ASSISTANT_TTS_INSTRUCTIONS": self.tts_instructions or "",
+            "ASSISTANT_MUTE_SPEECH": "true" if self.mute_speech else "false",
+            "ASSISTANT_LOW_VERBOSITY": "true" if self.low_verbosity else "false",
+            "ASSISTANT_START_HIDDEN": "true" if self.start_hidden else "false",
+            "ASSISTANT_CHIME_VOLUME": str(self.chime_volume),
             "ASSISTANT_SAFE_TOOL_MODE": "true" if self.safe_tool_mode else "false",
             "ASSISTANT_IDLE_TIMEOUT_SECONDS": str(self.idle_timeout_seconds),
             "ASSISTANT_MEMORY_ENABLED": "true" if self.memory_enabled else "false",
@@ -186,6 +201,7 @@ class AssistantConfig:
     def summary_lines(self) -> tuple[str, ...]:
         keyword = self.porcupine_keyword_path or self.porcupine_keyword or "unset"
         return (
+            f"Name: {self.display_name}",
             f"Wake word label: {self.wake_word}",
             f"Porcupine keyword: {keyword}",
             f"Chat model: {self.chat_model}",
@@ -193,6 +209,7 @@ class AssistantConfig:
             f"Follow-up mode: {'yes' if self.follow_up_enabled else 'no'}",
             f"Safe tool mode: {'yes' if self.safe_tool_mode else 'no'}",
             f"TTS model: {self.tts_model}",
+            f"Muted: {'yes' if self.mute_speech else 'no'}",
             f"Memory enabled: {'yes' if self.memory_enabled else 'no'}",
             f"TTS enabled: {'yes' if self.tts_enabled else 'no'}",
         )
@@ -203,6 +220,10 @@ def env_file_path() -> Path:
     if configured:
         return Path(configured).expanduser()
     return Path(".env")
+
+
+def logs_dir_path() -> Path:
+    return env_file_path().expanduser().resolve().parent / "logs"
 
 
 def candidate_env_paths() -> tuple[Path, ...]:
@@ -229,6 +250,7 @@ __all__ = [
     "candidate_env_paths",
     "env_file_path",
     "load_environment",
+    "logs_dir_path",
     "parse_bool",
     "parse_csv",
     "parse_optional_int",

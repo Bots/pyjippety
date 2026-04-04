@@ -90,7 +90,7 @@ class PyjippetyViewMixin:
                 row=0, column=0, rowspan=2, sticky="w", padx=(0, 12)
             )
 
-        ttk.Label(header, text="PyJippety", style="Header.TLabel").grid(row=0, column=1, sticky="w")
+        ttk.Label(header, textvariable=self.display_name_var, style="Header.TLabel").grid(row=0, column=1, sticky="w")
         ttk.Label(
             header,
             text="Desktop voice assistant",
@@ -107,6 +107,13 @@ class PyjippetyViewMixin:
             font=("TkDefaultFont", 10, "bold"),
         )
         self.status_badge.grid(row=0, column=2, rowspan=2, sticky="e")
+        tk.Label(
+            header,
+            textvariable=self.status_hint_var,
+            bg=SURFACE,
+            fg=MUTED,
+            justify="right",
+        ).grid(row=2, column=2, sticky="e", pady=(6, 0))
 
         body = ttk.Frame(self.root, style="App.TFrame", padding=(24, 8, 24, 24))
         body.grid(row=1, column=0, sticky="nsew")
@@ -170,6 +177,15 @@ class PyjippetyViewMixin:
         self.test_button.grid(row=2, column=0, sticky="ew", pady=(10, 0))
         self.sleep_button = ttk.Button(action_grid, text="Sleep", command=self.sleep_voice_mode, style="Secondary.TButton")
         self.sleep_button.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=(10, 0))
+        self.wake_test_button = ttk.Button(action_grid, text="Wake cue", command=self.test_wake_word, style="Secondary.TButton")
+        self.wake_test_button.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        ttk.Checkbutton(
+            action_grid,
+            text="Mute speech",
+            variable=self.mute_var,
+            command=self.on_toggle_mute,
+            style="App.TCheckbutton",
+        ).grid(row=3, column=1, sticky="w", padx=(10, 0), pady=(10, 0))
 
         setup_card = self._card(parent)
         setup_card.pack(fill="x", pady=(16, 0))
@@ -234,9 +250,21 @@ class PyjippetyViewMixin:
         tk.Label(action_row, text="Ctrl+Enter sends", bg=CARD, fg=MUTED).grid(row=0, column=0, sticky="w")
         self.ask_button = ttk.Button(action_row, text="Ask", command=self.ask_from_text, style="Primary.TButton")
         self.ask_button.grid(row=0, column=1, sticky="e")
+        action_row_two = tk.Frame(prompt_card, bg=CARD)
+        action_row_two.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        ttk.Button(action_row_two, text="Repeat", command=self.repeat_last_answer, style="Secondary.TButton").pack(side="left")
+        ttk.Button(action_row_two, text="Copy answer", command=self.copy_last_answer, style="Secondary.TButton").pack(side="left", padx=(10, 0))
+        ttk.Button(action_row_two, text="Clear view", command=self.clear_conversation, style="Secondary.TButton").pack(side="left", padx=(10, 0))
+
+        recent_card = self._card(parent, padding=(18, 18))
+        recent_card.grid(row=2, column=1, sticky="new", padx=(12, 4), pady=(0, 16))
+        recent_card.grid_columnconfigure(0, weight=1)
+        tk.Label(recent_card, text="Recent prompts", bg=CARD, fg=TEXT, font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
+        self.recent_prompts_frame = tk.Frame(recent_card, bg=CARD)
+        self.recent_prompts_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
 
         transcript_card = self._card(parent, padding=(18, 18))
-        transcript_card.grid(row=1, column=0, columnspan=2, sticky="ew", padx=4, pady=(0, 16))
+        transcript_card.grid(row=1, column=0, sticky="ew", padx=4, pady=(0, 16))
         transcript_card.grid_columnconfigure(0, weight=1)
         tk.Label(transcript_card, text="Last transcript", bg=CARD, fg=TEXT, font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
         tk.Label(transcript_card, text="Correct it and send again if speech recognition was close but not right.", bg=CARD, fg=MUTED).grid(row=1, column=0, sticky="w", pady=(4, 10))
@@ -281,7 +309,7 @@ class PyjippetyViewMixin:
         self.log_view.configure(state="disabled")
 
         side_card = self._card(parent, padding=(18, 18))
-        side_card.grid(row=2, column=1, sticky="nsew", padx=(12, 4), pady=(0, 4))
+        side_card.grid(row=3, column=1, sticky="nsew", padx=(12, 4), pady=(0, 4))
         side_card.grid_columnconfigure(0, weight=1)
         side_card.grid_rowconfigure(5, weight=1)
         tk.Label(side_card, text="Notes", bg=CARD, fg=TEXT, font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="w")
@@ -358,6 +386,11 @@ class PyjippetyViewMixin:
         ttk.Button(controls, text="Apply preset", command=self.apply_preset, style="Secondary.TButton").grid(row=1, column=2, padx=(10, 0), sticky="ew", pady=(10, 0))
         ttk.Button(controls, text="Save", command=self.save_settings, style="Primary.TButton").grid(row=1, column=3, padx=(10, 0), sticky="ew", pady=(10, 0))
         ttk.Button(controls, text="Reload", command=self.reload_settings, style="Secondary.TButton").grid(row=1, column=4, padx=(10, 0), sticky="ew", pady=(10, 0))
+        extras = tk.Frame(toolbar, bg=CARD)
+        extras.grid(row=3, column=0, columnspan=2, sticky="w", pady=(12, 0))
+        ttk.Button(extras, text="Open config folder", command=self.open_config_folder, style="Secondary.TButton").pack(side="left")
+        ttk.Button(extras, text="Open logs folder", command=self.open_logs_folder, style="Secondary.TButton").pack(side="left", padx=(10, 0))
+        ttk.Button(extras, text="Export profile", command=self.export_current_profile, style="Secondary.TButton").pack(side="left", padx=(10, 0))
         self.show_advanced_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             toolbar,

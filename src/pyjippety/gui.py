@@ -10,7 +10,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
 
-from .config import AssistantConfig, env_file_path, load_environment
+from .config import AssistantConfig, env_file_path, load_environment, logs_dir_path
 from .controller import AppController
 from .tray import build_tray_manager
 from .ui_shared import (
@@ -64,9 +64,13 @@ class PyjippetyApp(PyjippetyViewMixin):
         self.profile_var = tk.StringVar(value="default")
         self.preset_var = tk.StringVar(value="Custom")
         self.device_var = tk.StringVar(value="")
+        self.mute_var = tk.BooleanVar(value=False)
+        self.display_name_var = tk.StringVar(value="PyJippety")
         self.last_transcript_var = tk.StringVar(value="")
         self.stream_response_var = tk.StringVar(value="")
+        self.status_hint_var = tk.StringVar(value="Ready")
         self.history_entries: list[dict[str, str]] = []
+        self.last_response_text = ""
         self.device_map: dict[str, str] = {}
         self.logo_image: tk.PhotoImage | None = None
         self.logo_mark: tk.PhotoImage | None = None
@@ -96,7 +100,13 @@ class PyjippetyApp(PyjippetyViewMixin):
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.INFO)
         root_logger.addHandler(handler)
+        logs_dir = logs_dir_path()
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(logs_dir / "pyjippety.log", encoding="utf-8")
+        file_handler.setFormatter(logging.Formatter("%(asctime)s  %(levelname)s  %(message)s"))
+        root_logger.addHandler(file_handler)
         self.log_handler = handler
+        self.file_log_handler = file_handler
 
     def _init_tray(self) -> None:
         icon_path = None
@@ -166,6 +176,7 @@ class PyjippetyApp(PyjippetyViewMixin):
             widget.insert("1.0", values.get(key, ""))
         for key, variable in self.bool_vars.items():
             variable.set(values.get(key, "").strip().lower() in {"1", "true", "yes", "on"})
+        self.mute_var.set(values.get("ASSISTANT_MUTE_SPEECH", "false").strip().lower() in {"1", "true", "yes", "on"})
 
     def _collect_form_values(self) -> dict[str, str]:
         values: dict[str, str] = {}
@@ -179,6 +190,7 @@ class PyjippetyApp(PyjippetyViewMixin):
             values[key] = widget.get("1.0", "end").strip().replace("\n", " ")
         for key, variable in self.bool_vars.items():
             values[key] = "true" if variable.get() else "false"
+        values["ASSISTANT_MUTE_SPEECH"] = "true" if self.mute_var.get() else "false"
         return values
 
     def collect_form_values(self) -> dict[str, str]:
@@ -189,6 +201,8 @@ class PyjippetyApp(PyjippetyViewMixin):
 
     def _refresh_active_config(self, environment: dict[str, str]) -> None:
         self.controller.refresh_active_config(environment)
+        self.display_name_var.set(self.config.display_name)
+        self.root.title(self.config.display_name)
 
     def _set_status(self, text: str) -> None:
         colors = {
@@ -206,6 +220,17 @@ class PyjippetyApp(PyjippetyViewMixin):
         running = text in {"Starting", "Listening", "Follow-up", "Thinking", "Stopping"}
         self.start_button.configure(state="disabled" if running else "normal")
         self.stop_button.configure(state="normal" if running else "disabled")
+        hints = {
+            "Idle": "Waiting for you.",
+            "Starting": "Initializing audio and wake word.",
+            "Listening": "Waiting for the wake word.",
+            "Follow-up": "Listening for a quick follow-up.",
+            "Thinking": "Generating a response.",
+            "Sleeping": "Background session paused.",
+            "Stopping": "Finishing current session.",
+            "Error": "Check the session log for details.",
+        }
+        self.status_hint_var.set(hints.get(text, ""))
         if self.tray_manager is not None:
             self.tray_manager.update_status(text)
 
@@ -237,6 +262,7 @@ class PyjippetyApp(PyjippetyViewMixin):
         self.controller.save_history()
         self.controller.render_history()
         self._append_log("History cleared.")
+        self._refresh_recent_prompts()
 
     def switch_profile(self) -> None:
         self.reload_settings()
@@ -287,6 +313,7 @@ class PyjippetyApp(PyjippetyViewMixin):
         if self.tray_manager is not None:
             self.tray_manager.stop()
         logging.getLogger().removeHandler(self.log_handler)
+        logging.getLogger().removeHandler(self.file_log_handler)
         self.root.after(0, self.root.destroy)
 
     def sleep_voice_mode(self) -> None:
@@ -304,10 +331,39 @@ class PyjippetyApp(PyjippetyViewMixin):
                 pass
         self._append_log("Output interrupted.")
 
+    def on_toggle_mute(self) -> None:
+        if self.assistant is not None and hasattr(self.assistant.speaker, "disabled"):
+            self.assistant.speaker.disabled = self.mute_var.get()
+        if self.manual_speaker is not None and hasattr(self.manual_speaker, "disabled"):
+            self.manual_speaker.disabled = self.mute_var.get()
+        self._append_log(f"Speech {'muted' if self.mute_var.get() else 'unmuted'}.")
+
+    def repeat_last_answer(self) -> None:
+        self.controller.repeat_last_answer()
+
+    def copy_last_answer(self) -> None:
+        self.controller.copy_last_answer()
+
+    def clear_conversation(self) -> None:
+        self.controller.clear_conversation()
+
+    def test_wake_word(self) -> None:
+        self.controller.test_wake_word()
+
+    def open_config_folder(self) -> None:
+        self.controller.open_config_folder()
+
+    def open_logs_folder(self) -> None:
+        self.controller.open_logs_folder()
+
+    def export_current_profile(self) -> None:
+        self.controller.export_current_profile()
+
     def resend_last_transcript(self) -> None:
         prompt = self.last_transcript_var.get().strip()
         if not prompt:
             return
+        self.interrupt_current_output()
         self.prompt_box.delete("1.0", "end")
         self.prompt_box.insert("1.0", prompt)
         self.ask_from_text()
@@ -405,9 +461,9 @@ class PyjippetyApp(PyjippetyViewMixin):
         values = self._collect_form_values()
         self.env_path.parent.mkdir(parents=True, exist_ok=True)
         self.env_path.touch(exist_ok=True)
-        for key in self._all_setting_keys():
-            set_key(str(self.env_path), key, values.get(key, ""), quote_mode="auto")
-            os.environ[key] = values.get(key, "")
+        for key, value in values.items():
+            set_key(str(self.env_path), key, value, quote_mode="auto")
+            os.environ[key] = value
         self.controller.save_profile_data(self.profile_var.get(), values)
         self._refresh_active_config(self._build_environment())
         self.controller.load_profiles()
@@ -440,6 +496,8 @@ class PyjippetyApp(PyjippetyViewMixin):
         self._refresh_advanced_visibility()
         self.controller.load_history()
         self._append_log(f"Loaded settings from {self.env_path}.")
+        if self.config.start_hidden and self.tray_manager is not None and getattr(self.tray_manager, "available", False):
+            self.root.after(200, self.hide_window)
 
     def start_voice_mode(self) -> None:
         self.controller.start_voice_mode()
@@ -469,15 +527,18 @@ class PyjippetyApp(PyjippetyViewMixin):
         self._set_status("Stopping")
 
     def push_to_talk(self) -> None:
+        self.interrupt_current_output()
         self.controller.push_to_talk()
 
     def ask_from_text(self) -> None:
         prompt = self.prompt_box.get("1.0", "end").strip()
         if not prompt:
             return
+        self.interrupt_current_output()
         self.prompt_box.delete("1.0", "end")
         self._append_log(f"You: {prompt}")
         self.controller.record_history("prompt", prompt)
+        self._refresh_recent_prompts()
         environment = self._build_environment()
         self._refresh_active_config(environment)
         self.manual_thread = threading.Thread(
@@ -502,13 +563,67 @@ class PyjippetyApp(PyjippetyViewMixin):
         self.controller.record_history("transcript", transcript)
 
     def on_response(self, response: str) -> None:
+        self.last_response_text = response
         self.controller.record_history("response", response)
+        self._refresh_recent_prompts()
 
     def _on_close(self) -> None:
         if self.tray_manager is not None and getattr(self.tray_manager, "available", False):
             self.hide_window()
             return
         self.quit_app()
+
+    def _refresh_recent_prompts(self) -> None:
+        if not hasattr(self, "recent_prompts_frame"):
+            return
+        for child in self.recent_prompts_frame.winfo_children():
+            child.destroy()
+        prompts = self.controller.recent_prompts()
+        if not prompts:
+            tk.Label(
+                self.recent_prompts_frame,
+                text="No recent prompts yet.",
+                bg=CARD,
+                fg=MUTED,
+            ).pack(anchor="w")
+            return
+        for prompt in prompts:
+            ttk.Button(
+                self.recent_prompts_frame,
+                text=prompt[:36] + ("..." if len(prompt) > 36 else ""),
+                command=lambda p=prompt: self._reuse_prompt(p),
+                style="Secondary.TButton",
+            ).pack(fill="x", pady=(0, 8))
+
+    def _reuse_prompt(self, prompt: str) -> None:
+        self.prompt_box.delete("1.0", "end")
+        self.prompt_box.insert("1.0", prompt)
+
+    def _refresh_recent_prompts(self) -> None:
+        if not hasattr(self, "recent_prompts_frame"):
+            return
+        for child in self.recent_prompts_frame.winfo_children():
+            child.destroy()
+        prompts = self.controller.recent_prompts()
+        if not prompts:
+            tk.Label(
+                self.recent_prompts_frame,
+                text="No recent prompts yet.",
+                bg=CARD,
+                fg=MUTED,
+            ).pack(anchor="w")
+            return
+        for prompt in prompts:
+            ttk.Button(
+                self.recent_prompts_frame,
+                text=prompt[:36] + ("..." if len(prompt) > 36 else ""),
+                command=lambda p=prompt: self._reuse_prompt(p),
+                style="Secondary.TButton",
+            ).pack(fill="x", pady=(0, 8))
+
+    def _reuse_prompt(self, prompt: str) -> None:
+        self.prompt_box.delete("1.0", "end")
+        self.prompt_box.insert("1.0", prompt)
 
 
 def main() -> None:

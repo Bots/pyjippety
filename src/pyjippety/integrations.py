@@ -64,9 +64,14 @@ class OpenAIResponder:
         action_result = maybe_run_action(prompt, self.config)
         if action_result.handled:
             return action_result.message
+        instructions = self.config.system_prompt
+        if self.config.low_verbosity:
+            instructions = (
+                f"{instructions}\n\nKeep responses brief unless the user explicitly asks for detail."
+            )
         response = self.client.responses.create(
             model=self.config.chat_model,
-            instructions=self.config.system_prompt,
+            instructions=instructions,
             input=prompt,
         )
         text = getattr(response, "output_text", "").strip()
@@ -80,11 +85,16 @@ class OpenAIResponder:
             if action_result.message:
                 on_text(action_result.message)
             return action_result.message
+        instructions = self.config.system_prompt
+        if self.config.low_verbosity:
+            instructions = (
+                f"{instructions}\n\nKeep responses brief unless the user explicitly asks for detail."
+            )
 
         chunks: list[str] = []
         with self.client.responses.stream(
             model=self.config.chat_model,
-            instructions=self.config.system_prompt,
+            instructions=instructions,
             input=prompt,
         ) as stream:
             for event in stream:
@@ -347,9 +357,9 @@ def _read_wav_frames(wav_file: wave.Wave_read) -> bytes:
 
 
 class WakeChimePlayer:
-    def __init__(self) -> None:
+    def __init__(self, volume: float = 1.0) -> None:
         self.player = LocalAudioPlayer()
-        self._frames = generate_wake_chime()
+        self._frames = generate_wake_chime(volume)
 
     def play_wake_cue(self) -> None:
         try:
@@ -363,9 +373,9 @@ class WakeChimePlayer:
             LOGGER.warning("Wake chime playback failed: %s", exc)
 
 
-def generate_wake_chime() -> bytes:
+def generate_wake_chime(volume: float = 1.0) -> bytes:
     sample_rate = 24000
-    amplitude = 0.2
+    amplitude = max(0.0, min(volume, 2.0)) * 0.2
     frequencies = (720.0, 540.0)
     segment_duration = 0.11
     gap_duration = 0.012
@@ -391,7 +401,7 @@ def generate_wake_chime() -> bytes:
 
 
 def build_speaker(client: Any, config: AssistantConfig) -> Speaker:
-    if not config.tts_enabled:
+    if not config.tts_enabled or config.mute_speech:
         LOGGER.warning("TTS disabled by configuration; using console output only.")
         return ConsoleSpeaker()
 
@@ -451,7 +461,7 @@ def build_live_assistant(
         listener=OpenAITranscribingListener(client, config),
         responder=MemoryAwareResponder(OpenAIResponder(client, config), memory_store),
         speaker=build_speaker(client, config),
-        cue_player=WakeChimePlayer(),
+        cue_player=WakeChimePlayer(config.chime_volume),
         events=events,
     )
 

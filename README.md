@@ -111,6 +111,18 @@ You can also ask:
 what do you remember about me
 ```
 
+Small convenience features built into the UI:
+
+- `Repeat`: speak the last answer again
+- `Copy answer`: copy the last answer to the clipboard
+- `Clear view`: clear the current transcript/answer area without touching memory
+- `Wake cue`: play the configured wake sound
+- `Mute speech`: keep replies visible in the UI without speaking them out loud
+- `Open config folder`: jump to the profile/config storage location
+- `Open logs folder`: jump to the local log directory
+- `Export profile`: save the current profile as a zip archive
+- `Recent prompts`: quickly reuse recent spoken or typed requests
+
 ## Custom Wake Word
 
 PyJippety supports either:
@@ -287,10 +299,12 @@ For manual editing, the main settings are:
 - `ASSISTANT_WAKE_WORD`
 - `ASSISTANT_PORCUPINE_KEYWORD`
 - `ASSISTANT_PORCUPINE_KEYWORD_PATH`
+- `ASSISTANT_DISPLAY_NAME`
 - `ASSISTANT_CHAT_MODEL`
 - `ASSISTANT_TRANSCRIPTION_MODEL`
 - `ASSISTANT_TRANSCRIPTION_FALLBACK_MODELS`
 - `ASSISTANT_TTS_ENABLED`
+- `ASSISTANT_MUTE_SPEECH`
 - `ASSISTANT_TTS_MODEL`
 - `ASSISTANT_TTS_FALLBACK_MODELS`
 - `ASSISTANT_TTS_VOICE`
@@ -300,11 +314,14 @@ For manual editing, the main settings are:
 - `ASSISTANT_MEMORY_ENABLED`
 - `ASSISTANT_MEMORY_TURN_LIMIT`
 - `ASSISTANT_MEMORY_FACT_LIMIT`
+- `ASSISTANT_LOW_VERBOSITY`
 - `ASSISTANT_LISTEN_TIMEOUT`
 - `ASSISTANT_PHRASE_TIME_LIMIT`
 - `ASSISTANT_FOLLOW_UP_ENABLED`
 - `ASSISTANT_FOLLOW_UP_TURN_LIMIT`
 - `ASSISTANT_FOLLOW_UP_TIMEOUT`
+- `ASSISTANT_START_HIDDEN`
+- `ASSISTANT_CHIME_VOLUME`
 - `ASSISTANT_SAFE_TOOL_MODE`
 - `ASSISTANT_IDLE_TIMEOUT_SECONDS`
 - `ASSISTANT_AMBIENT_ADJUST_SECONDS`

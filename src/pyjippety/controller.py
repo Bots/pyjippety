@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
+import sys
 import threading
 import time
+import webbrowser
+from dataclasses import replace
+from pathlib import Path
+from tkinter import filedialog
 from typing import Any
 
-from .config import AssistantConfig
+from .config import AssistantConfig, logs_dir_path
 from .integrations import (
     OpenAITranscribingListener,
     OpenAIResponder,
+    WakeChimePlayer,
     build_live_assistant,
     build_openai_client,
     build_speaker,
@@ -29,8 +37,14 @@ class AppController:
         environment["PYJIPPETY_PROFILE"] = self.app.profile_var.get().strip() or "default"
         return environment
 
+    def effective_config(self, environment: dict[str, str]) -> AssistantConfig:
+        config = AssistantConfig.from_mapping(environment)
+        if self.app.mute_var.get():
+            config = replace(config, mute_speech=True)
+        return config
+
     def refresh_active_config(self, environment: dict[str, str]) -> None:
-        self.app.config = AssistantConfig.from_mapping(environment)
+        self.app.config = self.effective_config(environment)
         summary_lines = list(self.app.config.summary_lines())
         summary_lines.insert(0, f"Profile: {environment.get('PYJIPPETY_PROFILE', 'default')}")
         summary_lines.append(
@@ -67,6 +81,8 @@ class AppController:
     def load_history(self) -> None:
         self.app.history_entries = self.profile_store.load_history(self.app.profile_var.get())
         self.render_history()
+        if hasattr(self.app, "_refresh_recent_prompts"):
+            self.app._refresh_recent_prompts()
 
     def save_history(self) -> None:
         self.profile_store.save_history(
@@ -84,6 +100,8 @@ class AppController:
         self.app.history_entries = self.app.history_entries[-100:]
         self.save_history()
         self.render_history()
+        if hasattr(self.app, "_refresh_recent_prompts"):
+            self.app._refresh_recent_prompts()
 
     def render_history(self) -> None:
         if not hasattr(self.app, "history_view"):
@@ -122,6 +140,90 @@ class AppController:
 
     def _log(self, message: str) -> None:
         self.app._append_log(message)
+
+    def _open_path(self, path: Path) -> None:
+        if os.name == "nt":
+            os.startfile(path)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(path)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(path)], check=False)
+
+    def open_config_folder(self) -> None:
+        path = self.app.env_path.parent
+        path.mkdir(parents=True, exist_ok=True)
+        self._open_path(path)
+
+    def open_logs_folder(self) -> None:
+        path = logs_dir_path()
+        path.mkdir(parents=True, exist_ok=True)
+        self._open_path(path)
+
+    def export_current_profile(self) -> None:
+        profile = self.app.profile_var.get().strip() or "default"
+        source_dir = self.profile_store.profile_dir(profile)
+        source_dir.mkdir(parents=True, exist_ok=True)
+        target = filedialog.asksaveasfilename(
+            title="Export profile",
+            defaultextension=".zip",
+            initialfile=f"{profile}.zip",
+            filetypes=[("Zip archive", "*.zip")],
+        )
+        if not target:
+            return
+        archive_base = str(Path(target).with_suffix(""))
+        shutil.make_archive(archive_base, "zip", root_dir=source_dir.parent, base_dir=source_dir.name)
+        self._log(f"Exported profile to {Path(target).with_suffix('.zip')}.")
+
+    def repeat_last_answer(self) -> None:
+        if not self.app.last_response_text:
+            self._log("There is no previous answer to repeat.")
+            return
+        self.app.interrupt_current_output()
+        environment = self.build_environment()
+        config = self.effective_config(environment)
+        client = build_openai_client(environment)
+        speaker = build_speaker(client, config)
+        self.app.manual_speaker = speaker
+        try:
+            speaker.say(self.app.last_response_text)
+        finally:
+            self.app.manual_speaker = None
+
+    def copy_last_answer(self) -> None:
+        if not self.app.last_response_text:
+            self._log("There is no previous answer to copy.")
+            return
+        self.app.root.clipboard_clear()
+        self.app.root.clipboard_append(self.app.last_response_text)
+        self._log("Copied the last answer.")
+
+    def clear_conversation(self) -> None:
+        self.app.last_transcript_var.set("")
+        self.app.stream_response_var.set("")
+        self.app.last_response_text = ""
+        self._log("Cleared the current conversation view.")
+
+    def test_wake_word(self) -> None:
+        environment = self.build_environment()
+        config = self.effective_config(environment)
+        WakeChimePlayer(config.chime_volume).play_wake_cue()
+        keyword = config.porcupine_keyword_path or config.porcupine_keyword or config.wake_word
+        self._log(f"Wake word test ready for: {keyword}")
+
+    def recent_prompts(self, limit: int = 5) -> list[str]:
+        prompts = [
+            entry["text"]
+            for entry in reversed(self.app.history_entries)
+            if entry["kind"] in {"prompt", "transcript"}
+        ]
+        unique: list[str] = []
+        for prompt in prompts:
+            if prompt not in unique:
+                unique.append(prompt)
+            if len(unique) >= limit:
+                break
+        return unique
 
     def save_memory_notes(self) -> None:
         environment = self.build_environment()
@@ -188,7 +290,7 @@ class AppController:
         self.app.ui_queue.put(("status", "Thinking"))
         self.app.ui_queue.put(("stream", ""))
         try:
-            config = AssistantConfig.from_mapping(environment)
+            config = self.effective_config(environment)
             client = build_openai_client(environment)
             memory_store = build_memory_store(config, environment)
             responder = MemoryAwareResponder(OpenAIResponder(client, config), memory_store)
@@ -201,7 +303,8 @@ class AppController:
                 self.app.ui_queue.put(("stream", buffer["text"][-400:]))
 
             reply = responder.stream_reply(prompt, on_delta)
-            self.app.log_queue.put(f"PyJippety: {reply}")
+            self.app.last_response_text = reply
+            self.app.log_queue.put(f"{self.app.config.display_name}: {reply}")
             self.record_history("response", reply)
             try:
                 speaker.say(reply)
@@ -228,7 +331,7 @@ class AppController:
         def run_push_to_talk() -> None:
             self.app.ui_queue.put(("status", "Thinking"))
             try:
-                config = AssistantConfig.from_mapping(environment)
+                config = self.effective_config(environment)
                 client = build_openai_client(environment)
                 listener = OpenAITranscribingListener(client, config)
                 listener.calibrate()
