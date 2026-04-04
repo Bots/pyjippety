@@ -111,6 +111,87 @@ You can also ask:
 what do you remember about me
 ```
 
+## Custom Wake Word
+
+PyJippety supports either:
+
+- a built-in Porcupine keyword
+- a custom Porcupine wake-word model (`.ppn`)
+
+### Built-in keyword
+
+The quickest path is to use one of Porcupine’s built-in keywords in the `Setup` tab:
+
+1. Leave `Custom keyword file` empty.
+2. Set `Built-in keyword` to the word you want to use.
+3. Set `Wake word label` to the same word or phrase you want the UI to display.
+4. Save settings.
+
+### Custom `.ppn` wake word
+
+If you want a custom wake word such as `computer`, create a Porcupine keyword model and point PyJippety at it.
+
+Typical flow:
+
+1. Go to the Picovoice Console.
+2. Create a custom Porcupine wake word.
+3. Download the generated `.ppn` model for your platform.
+4. Save that file somewhere stable on your machine.
+5. In the `Setup` tab:
+   - set `Custom keyword file` to the path of the `.ppn` file
+   - set `Wake word label` to the phrase you want PyJippety to show in the UI
+6. Save settings.
+
+Notes:
+
+- If `Custom keyword file` is set, it takes priority over the built-in keyword field.
+- `.ppn` files are local assets and are ignored by Git in this repo by default.
+- If PyJippety says it cannot find the keyword file, open `Setup` and either clear the field or point it to the correct file again.
+
+## Everyday Use
+
+Typical voice flow:
+
+1. Open PyJippety.
+2. Click `Start`.
+3. Wait for the app to enter listening mode.
+4. Say the wake word.
+5. Ask your question.
+6. Listen for the reply.
+7. If needed, ask a follow-up question immediately after the reply.
+
+Examples:
+
+```text
+porcupine what time is it
+```
+
+```text
+porcupine remember that I like concise answers
+```
+
+```text
+porcupine open website github.com
+```
+
+```text
+porcupine what do you remember about me
+```
+
+Useful interaction modes:
+
+- `Start`: enable wake-word listening
+- `Push to talk`: ask one question without the wake word
+- `Ask`: type a request instead of speaking it
+- `Send transcript`: resend the last recognized speech after editing it
+- `Interrupt`: stop current playback
+- `Sleep`: stop active listening without quitting the app
+
+If tray support is available:
+
+- closing the window keeps the app running in the background
+- you can reopen it from the tray or menu bar icon
+
 ## Developer Setup
 
 If you want to run the project directly from source:
